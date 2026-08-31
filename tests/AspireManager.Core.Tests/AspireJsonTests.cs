@@ -73,7 +73,7 @@ public class AspireJsonTests
     public void ParsesAppHostList()
     {
         const string json = """
-            [{"appHostPath":"/Users/juuso/git/g6-single-repo/src/host/Shop.AppHost/Shop.AppHost.csproj",
+            [{"appHostPath":"/Users/dev/src/shop/src/host/Shop.AppHost/Shop.AppHost.csproj",
               "appHostPid":45548,"status":"running","sdkVersion":"13.5.1","cliPid":45070,
               "dashboardUrl":"https://localhost:17228/login?t=abc"}]
             """;

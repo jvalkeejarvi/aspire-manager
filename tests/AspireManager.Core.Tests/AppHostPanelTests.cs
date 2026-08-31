@@ -6,30 +6,30 @@ namespace AspireManager.Core.Tests;
 
 public class AppHostPanelTests
 {
-    private const string G6 = "/Users/juuso/git/g6-single-repo/src/host/Shop.AppHost/Shop.AppHost.csproj";
+    private const string AppHostPath = "/Users/dev/src/shop/src/host/Shop.AppHost/Shop.AppHost.csproj";
 
     [Fact]
     public void NameIsTheProjectFileName() =>
-        AppHostSelection.Name(G6).Should().Be("Shop.AppHost");
+        AppHostSelection.Name(AppHostPath).Should().Be("Shop.AppHost");
 
     [Fact]
     public void HomeBecomesTilde() =>
-        AppHostSelection.ShortPath(G6, "/Users/juuso", 200)
-            .Should().Be("~/git/g6-single-repo/src/host/Shop.AppHost/Shop.AppHost.csproj");
+        AppHostSelection.ShortPath(AppHostPath, "/Users/dev", 200)
+            .Should().Be("~/src/shop/src/host/Shop.AppHost/Shop.AppHost.csproj");
 
     [Fact]
     public void PathOutsideHomeIsLeftAlone() =>
-        AppHostSelection.ShortPath("/opt/app/A.csproj", "/Users/juuso", 200).Should().Be("/opt/app/A.csproj");
+        AppHostSelection.ShortPath("/opt/app/A.csproj", "/Users/dev", 200).Should().Be("/opt/app/A.csproj");
 
     [Fact]
     public void NoHomeIsHandled() =>
-        AppHostSelection.ShortPath(G6, null, 200).Should().Be(G6);
+        AppHostSelection.ShortPath(AppHostPath, null, 200).Should().Be(AppHostPath);
 
     /// <summary>The tail identifies the AppHost; the leading directories do not.</summary>
     [Fact]
     public void OverlongPathKeepsItsTail()
     {
-        string shortened = AppHostSelection.ShortPath(G6, "/Users/juuso", 30);
+        string shortened = AppHostSelection.ShortPath(AppHostPath, "/Users/dev", 30);
 
         shortened.Should().HaveLength(30);
         shortened.Should().StartWith("…").And.EndWith("Shop.AppHost.csproj");
@@ -39,11 +39,11 @@ public class AppHostPanelTests
     public void ShorteningNeverExceedsTheWidth() =>
         Enumerable.Range(1, 60)
             .Should().AllSatisfy(w =>
-                AppHostSelection.ShortPath(G6, "/Users/juuso", w).Length.Should().BeLessThanOrEqualTo(w));
+                AppHostSelection.ShortPath(AppHostPath, "/Users/dev", w).Length.Should().BeLessThanOrEqualTo(w));
 
     [Fact]
     public void ZeroWidthIsNotAnError() =>
-        AppHostSelection.ShortPath(G6, "/Users/juuso", 0).Should().NotBeNull();
+        AppHostSelection.ShortPath(AppHostPath, "/Users/dev", 0).Should().NotBeNull();
 }
 
 public class StoreClearTests
