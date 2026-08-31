@@ -79,7 +79,7 @@ internal sealed class ListOverlay
         frame.Add(list, hint);
 
         // Dialogs highlight the same way the panes do rather than falling back to the theme's inverse.
-        TuiAttribute normal = Palette.Normal(frame.GetAttributeForRole(VisualRole.Normal));
+        TuiAttribute normal = frame.GetAttributeForRole(VisualRole.Normal);
         list.SetScheme(Palette.WithSelection(normal));
 
         // The frame too: a FrameView draws its title with the Focus role while it holds focus, which would

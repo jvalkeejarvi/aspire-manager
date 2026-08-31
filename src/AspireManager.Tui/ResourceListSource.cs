@@ -94,9 +94,10 @@ internal sealed class ResourceListSource(IApplication app) : IListDataSource
         switch (_rows[item])
         {
             case TypeHeader header:
-                // Bold and the fold marker are enough; colour is reserved for status.
-                Write($"{(header.Collapsed ? '▸' : '▾')} {header.ResourceType} ({header.Count})",
-                    style: TextStyle.Bold);
+                // Only the count is bold: bold renders as brighter text, and a whole bold heading row
+                // outshouts the resources under it. Colour stays reserved for status.
+                Write($"{(header.Collapsed ? '▸' : '▾')} {header.ResourceType} ");
+                Write($"({header.Count})", style: TextStyle.Bold);
                 break;
 
             case ResourceItem entry:

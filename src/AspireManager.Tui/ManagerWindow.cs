@@ -213,7 +213,7 @@ internal sealed class ManagerWindow : Window
         };
 
         Add(_appHostFrame, _resourceFrame, _logFrame, _footer);
-        _baseAttribute = Palette.Normal(GetAttributeForRole(VisualRole.Normal));
+        _baseAttribute = GetAttributeForRole(VisualRole.Normal);
         _bindings = BuildBindings();
         RenderAppHost();
         FocusPane(Pane.Resources);
