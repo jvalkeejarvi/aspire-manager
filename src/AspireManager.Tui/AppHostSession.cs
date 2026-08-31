@@ -64,7 +64,7 @@ internal sealed class AppHostSession
                             _onConnection(ConnectionState.Reconnecting, dropped.RetryIn);
                             break;
 
-                        case ResourceUpdated(AspireResource resource):
+                        case ResourceUpdated({ } resource):
                             _resources.Upsert(resource);
                             break;
                     }
