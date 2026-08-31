@@ -46,6 +46,14 @@ if (choice is NoAppHost)
 IApplication app = Application.Create();
 app.Init();
 
+// Emit the 16 ANSI colours rather than truecolor, so every colour comes from the terminal's own palette —
+// the same choice lazygit makes (its defaults are named colours: green, blue, default). Without this the
+// app paints fixed RGB values and ignores the theme the user actually configured.
+if (app.Driver is { } driver)
+{
+    driver.Force16Colors = true;
+}
+
 // Terminal.Gui exits leaving application cursor-key mode (ESC[?1h) and application keypad mode (ESC=)
 // switched on, and never restores the cursor style. The shell inherits all three, so the prompt comes
 // back with the wrong cursor and arrow keys can misbehave. Put them back the way we found them.

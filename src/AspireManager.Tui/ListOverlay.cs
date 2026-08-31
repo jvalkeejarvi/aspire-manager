@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using AspireManager.Core;
+using Terminal.Gui.Drawing;
+using TuiAttribute = Terminal.Gui.Drawing.Attribute;
 using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -75,6 +77,14 @@ internal sealed class ListOverlay
             Height = Math.Min(rows.Count + 5, Math.Max(8, maxHeight)),
         };
         frame.Add(list, hint);
+
+        // Dialogs highlight the same way the panes do rather than falling back to the theme's inverse.
+        TuiAttribute normal = Palette.Normal(frame.GetAttributeForRole(VisualRole.Normal));
+        list.SetScheme(Palette.WithSelection(normal));
+
+        // The frame too: a FrameView draws its title with the Focus role while it holds focus, which would
+        // otherwise invert to a solid white title bar.
+        frame.SetScheme(new Scheme { Normal = normal, Focus = normal });
 
         ListOverlay overlay = new(frame, list, hint, rows, help, accept, cancel);
 

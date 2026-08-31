@@ -213,7 +213,7 @@ internal sealed class ManagerWindow : Window
         };
 
         Add(_appHostFrame, _resourceFrame, _logFrame, _footer);
-        _baseAttribute = GetAttributeForRole(VisualRole.Normal);
+        _baseAttribute = Palette.Normal(GetAttributeForRole(VisualRole.Normal));
         _bindings = BuildBindings();
         RenderAppHost();
         FocusPane(Pane.Resources);
@@ -254,13 +254,13 @@ internal sealed class ManagerWindow : Window
 
     // Only the focused panel is coloured, the way lazygit marks its active panel; the others keep the
     // terminal's own foreground. The `*` in the title says the same thing on a monochrome terminal.
-    private static readonly Color _focusedBorder = Color.Parse("BrightGreen");
+    private static readonly Color _focusedBorder = Color.Parse("Green");
 
     private static Color? ToneColour(RowTone tone) => tone switch
     {
-        RowTone.Healthy => Color.Parse("BrightGreen"),
-        RowTone.Warning => Color.Parse("BrightYellow"),
-        RowTone.Failed => Color.Parse("BrightRed"),
+        RowTone.Healthy => Color.Parse("Green"),
+        RowTone.Warning => Color.Parse("Yellow"),
+        RowTone.Failed => Color.Parse("Red"),
         RowTone.Inactive => Color.Parse("DarkGray"),
         _ => null,
     };
@@ -320,7 +320,7 @@ internal sealed class ManagerWindow : Window
         // turns blue with its border.
         foreach (View view in content)
         {
-            view.SetScheme(new Scheme(_baseAttribute));
+            view.SetScheme(Palette.WithSelection(_baseAttribute));
         }
     }
 
