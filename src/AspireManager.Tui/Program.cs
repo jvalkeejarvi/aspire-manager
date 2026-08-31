@@ -98,7 +98,7 @@ shutdown = () =>
     }
 
     TerminalState.Leave();
-    TerminalState.HardExit(0);
+    Environment.Exit(0);
 };
 
 if (configError is not null)

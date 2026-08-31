@@ -27,24 +27,6 @@ internal static class TerminalState
     [DllImport("libc", SetLastError = true)]
     private static extern int kill(int pid, int sig);
 
-    [DllImport("libc", EntryPoint = "_exit")]
-    private static extern void ExitImmediately(int code);
-
-    /// <summary>
-    /// Ends the process now. `Environment.Exit` waits for managed shutdown, which never completes here: the
-    /// UI thread is blocked reading stdin. Call only once the terminal is restored and children are killed,
-    /// because nothing else runs after this.
-    /// </summary>
-    public static void HardExit(int code)
-    {
-        if (IsSupported)
-        {
-            ExitImmediately(code);
-        }
-
-        Environment.Exit(code);
-    }
-
     /// <summary>Whether this platform has the job control and VT handling the rest of this class assumes.</summary>
     public static bool IsSupported => !OperatingSystem.IsWindows();
 
