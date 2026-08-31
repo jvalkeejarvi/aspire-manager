@@ -8,7 +8,11 @@ using CancellationTokenSource cts = new();
 // Not just Ctrl-C: on SIGTERM or a closed terminal the `finally` blocks in AspireCli must still run, or
 // the `aspire --follow` children outlive us and keep streaming from the AppHost forever.
 using PosixSignalRegistration sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, Handle);
-using PosixSignalRegistration sighup = PosixSignalRegistration.Create(PosixSignal.SIGHUP, Handle);
+
+// SIGHUP does not exist on Windows and registering it throws, which would kill the app at startup.
+using PosixSignalRegistration? sighup = OperatingSystem.IsWindows()
+    ? null
+    : PosixSignalRegistration.Create(PosixSignal.SIGHUP, Handle);
 
 void Handle(PosixSignalContext context)
 {

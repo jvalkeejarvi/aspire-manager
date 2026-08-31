@@ -58,13 +58,18 @@ public static class AppHostSelection
             return false;
         }
 
+        // Windows paths are case-insensitive: an Ordinal compare there would treat one AppHost as two.
+        StringComparison comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
         try
         {
-            return string.Equals(Path.GetFullPath(left), Path.GetFullPath(right), StringComparison.Ordinal);
+            return string.Equals(Path.GetFullPath(left), Path.GetFullPath(right), comparison);
         }
         catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
         {
-            return string.Equals(left, right, StringComparison.Ordinal);
+            return string.Equals(left, right, comparison);
         }
     }
 

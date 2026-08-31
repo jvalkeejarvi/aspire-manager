@@ -27,10 +27,25 @@ internal static class TerminalState
     [DllImport("libc", SetLastError = true)]
     private static extern int kill(int pid, int sig);
 
-    public static void Leave() => Write(Teardown);
+    /// <summary>Whether this platform has the job control and VT handling the rest of this class assumes.</summary>
+    public static bool IsSupported => !OperatingSystem.IsWindows();
+
+    public static void Leave()
+    {
+        // The Windows driver restores the console itself, and none of these sequences describe its state.
+        if (IsSupported)
+        {
+            Write(Teardown);
+        }
+    }
 
     public static void Enter()
     {
+        if (!IsSupported)
+        {
+            return;
+        }
+
         Write(Setup);
 
         // The shell restores its own line discipline when it takes the terminal back, so raw mode has to be
@@ -45,6 +60,11 @@ internal static class TerminalState
     /// </summary>
     public static void Suspend()
     {
+        if (!IsSupported)
+        {
+            return;
+        }
+
         Leave();
         kill(Environment.ProcessId, StopSignal);
 
@@ -65,7 +85,7 @@ internal static class TerminalState
 
     private static void Raw()
     {
-        if (Console.IsInputRedirected)
+        if (Console.IsInputRedirected || !IsSupported)
         {
             return;
         }

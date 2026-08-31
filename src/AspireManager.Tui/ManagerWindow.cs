@@ -768,7 +768,8 @@ internal sealed class ManagerWindow : Window
             })),
         new("tab", "next panel", Panes.All, Binding.Exactly(Key.Tab), NextPane),
         new("^r", "switch AppHost", Panes.All, Binding.Ctrl(KeyCode.R), OpenHosts),
-        new("^z", "suspend to the shell (fg to return)", Panes.All, Binding.Ctrl(KeyCode.Z), Suspend),
+        new("^z", "suspend to the shell (fg to return)", Panes.All, Binding.Ctrl(KeyCode.Z), Suspend,
+            () => TerminalState.IsSupported),
         new("?", "this list", Panes.All, Binding.Char('?'), ShowHelp),
         new("q", "quit", Panes.All, Binding.Char('q'), () => _app.RequestStop(this)),
     ];
