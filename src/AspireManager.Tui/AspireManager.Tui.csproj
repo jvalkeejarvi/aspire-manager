@@ -7,6 +7,24 @@
         <PublishAot>true</PublishAot>
     </PropertyGroup>
 
+    <!-- `dotnet pack` produces a dotnet tool. Note this is IL, not native: PublishAot is ignored when
+         packing a tool, so the package needs a .NET runtime on the machine that installs it. The native
+         single-file build is `dotnet publish -r <rid>`, which is unaffected by these properties. -->
+    <PropertyGroup>
+        <PackAsTool>true</PackAsTool>
+        <ToolCommandName>aspire-manager</ToolCommandName>
+        <PackageId>aspire-manager</PackageId>
+        <Version>0.1.0</Version>
+        <Authors>Juuso Valkeejärvi</Authors>
+        <Description>A lazygit-style terminal UI for .NET Aspire: watch resources, tail logs, restart and rebuild.</Description>
+        <PackageTags>aspire;tui;terminal;dotnet-tool</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
     <ItemGroup>
         <PackageReference Include="Terminal.Gui"/>
         <ProjectReference Include="..\AspireManager.Core\AspireManager.Core.csproj"/>

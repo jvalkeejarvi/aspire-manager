@@ -56,6 +56,34 @@ cp src/AspireManager.Tui/bin/Release/net10.0/osx-arm64/publish/aspire-manager ~/
 That is a self-contained ~20MB executable — copy the one file, nothing else is needed beside it. Use
 `-r linux-x64` on Linux; cross-compiling from macOS needs a cross-linker and is not set up here.
 
+## Installing it as a dotnet tool
+
+`install-tool.ps1` packs the working tree and installs it as a global dotnet tool, into whichever directory
+the SDK uses on this OS (`~/.dotnet/tools`, or `%USERPROFILE%\.dotnet\tools` on Windows). It is PowerShell
+so it runs the same everywhere, and it has a shebang so `./install-tool.ps1` works on macOS and Linux.
+
+```bash
+./install-tool.ps1              # install the current working tree
+./install-tool.ps1 -Native      # build a native binary for this machine instead
+./install-tool.ps1 -Uninstall   # remove it
+```
+
+Each run stamps a unique `0.0.0-local.<timestamp>` version. That is not cosmetic: NuGet caches packages by
+id and version, so reusing one risks installing the previous build out of `~/.nuget/packages` rather than
+what you just compiled.
+
+`-Native` packs a RID-specific tool containing a real native binary — about 90ms to first render against
+300ms for the portable one, and no .NET runtime needed to run it. Native AOT cannot cross-compile, so it
+only ever targets the machine that builds it; without the flag you get the portable IL tool, which installs
+anywhere with a .NET 10 runtime.
+
+To publish to a feed, pack and push as usual:
+
+```bash
+dotnet pack src/AspireManager.Tui -c Release -o ./nupkg
+dotnet nuget push ./nupkg/aspire-manager.<version>.nupkg -s <feed> -k <key>
+```
+
 ## Keys
 
 Press `?` for the keys that apply where you are; the list is generated from the bindings themselves, so it
