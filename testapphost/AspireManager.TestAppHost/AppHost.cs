@@ -1,5 +1,3 @@
-using Aspire.Hosting.ApplicationModel;
-
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Executables rather than containers so the fixture runs without Docker; both expose restart/stop,

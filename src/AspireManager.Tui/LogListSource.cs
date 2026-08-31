@@ -3,7 +3,6 @@ using System.Collections.Specialized;
 using AspireManager.Core;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
-using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using TuiAttribute = Terminal.Gui.Drawing.Attribute;
 

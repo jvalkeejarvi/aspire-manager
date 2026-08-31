@@ -4,8 +4,6 @@ using AspireManager.Core;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using TuiAttribute = Terminal.Gui.Drawing.Attribute;
-using Terminal.Gui.Drivers;
-using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
 namespace AspireManager.Tui;
