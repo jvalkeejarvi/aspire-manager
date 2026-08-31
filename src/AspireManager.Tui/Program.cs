@@ -34,16 +34,7 @@ app.Init();
 // Terminal.Gui exits leaving application cursor-key mode (ESC[?1h) and application keypad mode (ESC=)
 // switched on, and never restores the cursor style. The shell inherits all three, so the prompt comes
 // back with the wrong cursor and arrow keys can misbehave. Put them back the way we found them.
-void RestoreTerminal()
-{
-    if (Console.IsOutputRedirected)
-    {
-        return;
-    }
-
-    Console.Out.Write("\u001b[0 q\u001b[?1l\u001b>");
-    Console.Out.Flush();
-}
+void RestoreTerminal() => TerminalState.Leave();
 
 string? appHostPath = choice switch
 {

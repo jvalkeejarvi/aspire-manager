@@ -763,9 +763,23 @@ internal sealed class ManagerWindow : Window
             })),
         new("tab", "next panel", Panes.All, Binding.Exactly(Key.Tab), NextPane),
         new("^r", "switch AppHost", Panes.All, Binding.Ctrl(KeyCode.R), OpenHosts),
+        new("^z", "suspend to the shell (fg to return)", Panes.All, Binding.Ctrl(KeyCode.Z), Suspend),
         new("?", "this list", Panes.All, Binding.Char('?'), ShowHelp),
         new("q", "quit", Panes.All, Binding.Char('q'), () => _app.RequestStop(this)),
     ];
+
+    /// <summary>
+    /// Terminal.Gui binds Ctrl-Z to its own Suspend command, which is documented as UnixDriver-only: on this
+    /// driver it tears the screen down without ever stopping the process. Handling it here takes precedence,
+    /// since the application-level hook runs before Terminal.Gui's own key bindings.
+    /// </summary>
+    private void Suspend()
+    {
+        TerminalState.Suspend();
+
+        // Back in the foreground: the screen was handed to the shell, so nothing on it can be trusted.
+        _app.LayoutAndDraw(true);
+    }
 
     private static bool PageKey(Key key) =>
         key.IsCtrl && (key.KeyCode & ~KeyCode.CtrlMask) is KeyCode.D or KeyCode.U;
