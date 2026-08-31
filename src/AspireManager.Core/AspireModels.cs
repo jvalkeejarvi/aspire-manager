@@ -93,7 +93,11 @@ public static class AspireJson
         return resource with
         {
             DisplayName = string.IsNullOrEmpty(resource.DisplayName) ? resource.Name : resource.DisplayName,
+            // Not redundant, however non-nullable the record declares these: the deserialiser fills in
+            // null for any field the CLI omits, and a resource caught mid-restart has no `state`.
+            // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
             ResourceType = resource.ResourceType ?? "Unknown",
+            // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
             State = resource.State ?? "",
         };
     }
@@ -101,6 +105,7 @@ public static class AspireJson
     private static LogLine? Normalise(LogLine? line) =>
         line is null || string.IsNullOrEmpty(line.ResourceName)
             ? null
+            // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
             : line with { Content = line.Content ?? "" };
 
     /// <summary>The whole document from <c>aspire ps --format Json</c>.</summary>
@@ -108,7 +113,7 @@ public static class AspireJson
     [
         .. (TryParse(json, static j => JsonSerializer.Deserialize(j, AspireJsonContext.Default.AppHostArray)) ?? [])
             .Where(static h => !string.IsNullOrEmpty(h.AppHostPath))
-            .Select(static h => h with { Status = h.Status ?? "" }),
+            .Select(static h => h with { Status = h.Status }),
     ];
 
     /// <summary>The whole document from <c>aspire logs --format Json</c> without --follow.</summary>

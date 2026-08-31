@@ -17,6 +17,11 @@ using PosixSignalRegistration? sighup = OperatingSystem.IsWindows()
 void Handle(PosixSignalContext context)
 {
     context.Cancel = true;
+
+    // ReSharper disable once AccessToDisposedClosure
+    // Safe by disposal order, which the inspection cannot see: `using` declarations dispose in reverse, so
+    // both signal registrations are unregistered before `cts` is. Once the source is disposed there is
+    // nothing left that could invoke this handler.
     cts.Cancel();
 }
 
@@ -60,7 +65,12 @@ ResourceStore resources = new();
 LogStore logs = new();
 
 ManagerWindow? window = null;
+
+// The window outlives every session that reports to it: the finally below stops the current session and
+// waits for it before `app.Dispose()` disposes the window, so a connection callback cannot arrive after
+// that. The null-conditional covers the opposite end, the moment before `window` is assigned below.
 AppHostSession Create(string path) =>
+    // ReSharper disable once AccessToModifiedClosure
     new(path, resources, logs, (state, retryIn) => window?.SetConnection(state, retryIn));
 
 AppHostSession session = Create(appHostPath);
