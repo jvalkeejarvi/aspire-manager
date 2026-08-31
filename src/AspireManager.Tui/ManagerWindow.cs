@@ -72,6 +72,10 @@ internal sealed class ManagerWindow : Window
     // loop started under another one does not re-check it until the next keypress, so a nested modal
     // needs a second Enter to close. One loop keeps key routing predictable.
     private Pane _pane = Pane.Resources;
+    private IReadOnlyList<Binding> _bindings = [];
+
+    /// <summary>The key currently being dispatched, so a binding's action can tell j from k.</summary>
+    private Key? LastKey { get; set; }
 
     // Captured before anything is recoloured. Re-reading a frame's attribute after painting it blue would
     // treat blue as the baseline and bleed it into the panel's contents on the next repaint.
@@ -208,6 +212,7 @@ internal sealed class ManagerWindow : Window
 
         Add(_appHostFrame, _resourceFrame, _logFrame, _footer);
         _baseAttribute = GetAttributeForRole(VisualRole.Normal);
+        _bindings = BuildBindings();
         RenderAppHost();
         FocusPane(Pane.Resources);
 
@@ -473,210 +478,18 @@ internal sealed class ManagerWindow : Window
 
         }
 
-        if ((char)key.AsRune.Value == '?')
-        {
-            key.Handled = true;
-            ShowHelp();
-            return;
-        }
+        LastKey = key;
 
-        // Number keys jump to a pane, as lazygit's numbered panels do.
-        if ((char)key.AsRune.Value is '1' or '2' or '0')
+        foreach (Binding binding in _bindings)
         {
-            key.Handled = true;
-            FocusPane((char)key.AsRune.Value switch
+            if (!binding.AppliesTo(CurrentPane) || !binding.Matches(key))
             {
-                '1' => Pane.AppHost,
-                '2' => Pane.Resources,
-                _ => Pane.Logs,
-            });
-
-            return;
-        }
-
-        // 'o' opens the resource's first human-facing URL, 'O' offers the full list.
-        if ((char)key.AsRune.Value is 'o' or 'O')
-        {
-            // In the AppHost panel there is only one URL worth opening: the dashboard.
-            if (_pane == Pane.AppHost)
-            {
-                key.Handled = true;
-                OpenDashboard();
-                return;
+                continue;
             }
 
-            if (Selected() is { } withUrls)
-            {
-                key.Handled = true;
-
-                if ((char)key.AsRune.Value == 'o')
-                {
-                    OpenPrimaryUrl(withUrls);
-                }
-                else
-                {
-                    OpenUrlPicker(withUrls);
-                }
-
-                return;
-            }
-        }
-
-        // Ctrl-R switches AppHost from anywhere, the way lazygit switches repository.
-        if (key.IsCtrl && (key.KeyCode & ~KeyCode.CtrlMask) == KeyCode.R)
-        {
             key.Handled = true;
-            OpenHosts();
+            binding.Run();
             return;
-        }
-
-        // Tab traversal did not reliably land on the other pane's list, so the panes own their focus.
-        if (key == Key.Tab)
-        {
-            key.Handled = true;
-
-            // Leaving the pane leaves its search behind; a highlight you cannot navigate is just clutter.
-            if (_logFocused)
-            {
-                ClearLogSearch();
-            }
-
-            FocusPane(_pane switch
-            {
-                Pane.AppHost => Pane.Resources,
-                Pane.Resources => Pane.Logs,
-                _ => Pane.AppHost,
-            });
-            return;
-        }
-
-        if (!_logFocused && key == Key.Enter)
-        {
-            key.Handled = true;
-
-            // Enter drills in: a heading folds, a resource hands focus to its logs.
-            if (SelectedRow() is TypeHeader)
-            {
-                ToggleFold();
-            }
-            else if (SelectedRow() is ResourceItem)
-            {
-                FocusPane(Pane.Logs);
-            }
-
-            return;
-        }
-
-        if (ListKeys.PageMove(_logFocused ? _logList : _resourceList, key))
-        {
-            if (_logFocused)
-            {
-                RenderLogTitle();
-            }
-
-            return;
-        }
-
-        if (ListKeys.VimMove(_logFocused ? _logList : _resourceList, key))
-        {
-            if (_logFocused)
-            {
-                RenderLogTitle();
-            }
-
-            return;
-        }
-
-        char pressed = char.ToLowerInvariant((char)key.AsRune.Value);
-
-        if (pressed == 'q')
-        {
-            key.Handled = true;
-            _app.RequestStop(this);
-            return;
-        }
-
-        if (pressed == 'c')
-        {
-            key.Handled = true;
-            OpenPalette();
-            return;
-        }
-
-        if (pressed == '/')
-        {
-            key.Handled = true;
-
-            // '/' means "search what I am looking at": the resource list filters, the log pane highlights.
-            if (_logFocused)
-            {
-                OpenLogSearch();
-            }
-            else
-            {
-                OpenSearch();
-            }
-
-            return;
-        }
-
-        if (_logFocused && _logQuery.Length > 0 && (char)key.AsRune.Value is 'n' or 'N')
-        {
-            key.Handled = true;
-            JumpToMatch((char)key.AsRune.Value == 'n' ? 1 : -1);
-            return;
-        }
-
-        if (pressed is '-' or '=')
-        {
-            key.Handled = true;
-            FoldAll(collapse: pressed == '-');
-            return;
-        }
-
-        // A plain letter, not backtick: on a dead-key layout backtick needs a composing keystroke, and
-        // pressing the dead key twice sends two of them, toggling twice and looking broken.
-        if (pressed == 'g')
-        {
-            key.Handled = true;
-            _grouped = !_grouped;
-            Rebuild();
-            RenderLogs(force: true);
-            SetStatus(_grouped ? "grouped by type" : "ungrouped");
-            return;
-        }
-
-        // Esc (or Ctrl-G) backs out one step: out of the log pane first, and only then out of a filter.
-        // Clearing the filter from the log pane would throw away more than the user asked to leave.
-        if (ListKeys.IsCancel(key))
-        {
-            if (_logFocused && _logQuery.Length > 0)
-            {
-                key.Handled = true;
-                ClearLogSearch();
-                return;
-            }
-
-            if (_logFocused)
-            {
-                key.Handled = true;
-                FocusPane(Pane.Resources);
-                return;
-            }
-
-            if (_filter.Length > 0)
-            {
-                key.Handled = true;
-                SetFilter("");
-                SetStatus("filter cleared");
-                return;
-            }
-        }
-
-        if (ShellModel.CommandForKey(pressed) is { } command && Selected() is { } resource)
-        {
-            key.Handled = true;
-            Decide(resource, command);
         }
     }
 
@@ -839,32 +652,179 @@ internal sealed class ManagerWindow : Window
     /// <summary>Shows the one list dialog; the accept callback runs after it has closed.</summary>
     private void ShowList(string title, IReadOnlyList<string> rows, string help, int selected, Action<int> accept)
     {
+
         _list = ListOverlay.Build(title, rows, help, selected, index =>
         {
             CloseOverlay();
             accept(index);
-        }, CloseOverlay);
+        }, CloseOverlay, Math.Max(8, Viewport.Height - 2));
 
         _overlayFrame = _list.Frame;
         Add(_overlayFrame);
         _overlay = Overlay.List;
         _list.List.SetFocus();
+
+        // On a one-shot timer, not inline: the list has no viewport until the first draw, so scrolling it
+        // before then does nothing and a list taller than the dialog opens part-way down.
+        ListOverlay opened = _list;
+        _app.TimedEvents?.Add(TimeSpan.FromMilliseconds(1), () =>
+        {
+            opened.ScrollToSelection();
+            return false;
+        });
     }
 
-    /// <summary>The keys that work right here, rather than every key the application has.</summary>
+    /// <summary>The keys that work right here, rendered from the same table that dispatches them.</summary>
     private void ShowHelp()
     {
-        HelpContext context = _pane switch
+        Panes pane = CurrentPane;
+        List<(string, string)> rows = [.. _bindings.Where(b => !b.IsGlobal && b.AppliesTo(pane))
+            .Select(static b => (b.Label, b.Description))];
+
+        rows.Add(("", ""));
+        rows.AddRange(_bindings.Where(b => b.IsGlobal && b.AppliesTo(pane))
+            .Select(static b => (b.Label, b.Description)));
+
+        string title = pane switch
         {
-            Pane.AppHost => HelpContext.AppHost,
-            Pane.Logs => HelpContext.Logs,
-            _ => HelpContext.Resources,
+            Panes.AppHost => "Keys: AppHost",
+            Panes.Logs => "Keys: logs",
+            _ => "Keys: resources",
         };
 
-        IReadOnlyList<string> rows = HelpText.Rows(context, _filter.Length > 0, _logQuery.Length > 0);
 
         // Enter does nothing here; the list is a reference, not a menu.
-        ShowList(HelpText.Title(context), rows, " esc/^g close", 0, static _ => { });
+        ShowList(title, HelpText.Align(rows), " / filter   esc/^g close", 0, static _ => { });
+    }
+
+    private Panes CurrentPane => _pane switch
+    {
+        Pane.AppHost => Panes.AppHost,
+        Pane.Logs => Panes.Logs,
+        _ => Panes.Resources,
+    };
+
+    /// <summary>
+    /// Every key the panes respond to, with its description and where it applies. `?` renders from this
+    /// same list, so a new binding documents itself and the two cannot drift. First match wins, so the
+    /// narrower bindings come before ones that would also accept the key.
+    /// </summary>
+    private IReadOnlyList<Binding> BuildBindings() =>
+    [
+        new("o", "open the Aspire dashboard", Panes.AppHost, Binding.Char('o'), OpenDashboard),
+
+        new("j / k", "move up and down", Panes.Resources | Panes.Logs, Binding.AnyChar('j', 'k'), MoveInPane),
+        new("^d / ^u", "page down and up", Panes.Resources | Panes.Logs, PageKey, PageInPane),
+
+        new("enter", "on a resource: show its logs; on a heading: fold it", Panes.Resources,
+            Binding.Exactly(Key.Enter), EnterResource),
+        new("r / s / b", "restart, stop, rebuild", Panes.Resources, Binding.AnyChar('r', 's', 'b'),
+            RunKeyCommand, HasSelectedResource),
+        new("c", "all commands for this resource", Panes.Resources, Binding.Char('c'), OpenPalette,
+            HasSelectedResource),
+        new("o", "open its first URL", Panes.Resources, Binding.Char('o'),
+            () => OpenPrimaryUrl(Selected()!), HasSelectedResource),
+        new("O", "choose one of its URLs", Panes.Resources, Binding.Char('O'),
+            () => OpenUrlPicker(Selected()!), HasSelectedResource),
+        new("g", "group by type on/off", Panes.Resources, Binding.Char('g'), ToggleGrouping),
+        new("-", "fold every group", Panes.Resources, Binding.Char('-'), () => FoldAll(collapse: true)),
+        new("=", "unfold every group", Panes.Resources, Binding.Char('='), () => FoldAll(collapse: false)),
+        new("/", "filter by resource name", Panes.Resources, Binding.Char('/'), OpenSearch),
+        new("esc / ^g", "clear the filter", Panes.Resources, ListKeys.IsCancel,
+            () =>
+            {
+                SetFilter("");
+                SetStatus("filter cleared");
+            },
+            () => _filter.Length > 0),
+
+        new("/", "search these logs", Panes.Logs, Binding.Char('/'), OpenLogSearch),
+        new("n / N", "next and previous match", Panes.Logs, Binding.AnyChar('n', 'N'),
+            () => JumpToMatch((char)LastKey!.AsRune.Value == 'n' ? 1 : -1), SearchingLogs),
+        new("esc / ^g", "clear the search", Panes.Logs, ListKeys.IsCancel, ClearLogSearch, SearchingLogs),
+        new("esc / ^g", "back to resources", Panes.Logs, ListKeys.IsCancel, () => FocusPane(Pane.Resources)),
+
+        new("1 / 2 / 0", "focus AppHost, resources, logs", Panes.All, Binding.AnyChar('1', '2', '0'),
+            () => FocusPane((char)LastKey!.AsRune.Value switch
+            {
+                '1' => Pane.AppHost,
+                '2' => Pane.Resources,
+                _ => Pane.Logs,
+            })),
+        new("tab", "next panel", Panes.All, Binding.Exactly(Key.Tab), NextPane),
+        new("^r", "switch AppHost", Panes.All, Binding.Ctrl(KeyCode.R), OpenHosts),
+        new("?", "this list", Panes.All, Binding.Char('?'), ShowHelp),
+        new("q", "quit", Panes.All, Binding.Char('q'), () => _app.RequestStop(this)),
+    ];
+
+    private static bool PageKey(Key key) =>
+        key.IsCtrl && (key.KeyCode & ~KeyCode.CtrlMask) is KeyCode.D or KeyCode.U;
+
+    private bool HasSelectedResource() => Selected() is not null;
+
+    private bool SearchingLogs() => _logQuery.Length > 0;
+
+    private void MoveInPane()
+    {
+        ListKeys.VimMove(_logFocused ? _logList : _resourceList, LastKey!);
+        if (_logFocused)
+        {
+            RenderLogTitle();
+        }
+    }
+
+    private void PageInPane()
+    {
+        ListKeys.PageMove(_logFocused ? _logList : _resourceList, LastKey!);
+        if (_logFocused)
+        {
+            RenderLogTitle();
+        }
+    }
+
+    /// <summary>Enter drills in: a heading folds, a resource hands focus to its logs.</summary>
+    private void EnterResource()
+    {
+        if (SelectedRow() is TypeHeader)
+        {
+            ToggleFold();
+        }
+        else if (SelectedRow() is ResourceItem)
+        {
+            FocusPane(Pane.Logs);
+        }
+    }
+
+    private void RunKeyCommand()
+    {
+        if (ShellModel.CommandForKey((char)LastKey!.AsRune.Value) is { } command && Selected() is { } resource)
+        {
+            Decide(resource, command);
+        }
+    }
+
+    private void ToggleGrouping()
+    {
+        _grouped = !_grouped;
+        Rebuild();
+        RenderLogs(force: true);
+        SetStatus(_grouped ? "grouped by type" : "ungrouped");
+    }
+
+    private void NextPane()
+    {
+        // Leaving the pane leaves its search behind; a highlight you cannot navigate is just clutter.
+        if (_logFocused)
+        {
+            ClearLogSearch();
+        }
+
+        FocusPane(_pane switch
+        {
+            Pane.AppHost => Pane.Resources,
+            Pane.Resources => Pane.Logs,
+            _ => Pane.AppHost,
+        });
     }
 
     private void OpenPalette()

@@ -50,6 +50,7 @@ internal static class Modal
         try
         {
             overlay.List.SetFocus();
+            overlay.ScrollToSelection();
             app.Run(window);
         }
         finally

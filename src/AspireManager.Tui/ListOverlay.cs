@@ -53,7 +53,8 @@ internal sealed class ListOverlay
         string help,
         int selected,
         Action<int> accept,
-        Action cancel)
+        Action cancel,
+        int maxHeight = 20)
     {
         ListView list = new() { X = 2, Y = 1, Width = Dim.Fill(2), Height = Dim.Fill(2) };
         list.SetSource(new ObservableCollection<string>(rows));
@@ -71,15 +72,38 @@ internal sealed class ListOverlay
             // Sized to content rather than a percentage of the screen, plus room for the border and the
             // blank line above the list and above the help.
             Width = Math.Clamp(widest + 8, 38, 104),
-            Height = Math.Min(rows.Count + 5, 20),
+            Height = Math.Min(rows.Count + 5, Math.Max(8, maxHeight)),
         };
         frame.Add(list, hint);
 
         ListOverlay overlay = new(frame, list, hint, rows, help, accept, cancel);
 
-        // SelectedItem does not stick before layout, so it is set once the views are assembled.
+        // SelectedItem does not stick before layout, so it is set once the views are assembled, and the
+        // viewport is scrolled to it explicitly — otherwise a list taller than the dialog opens part-way
+        // down and the first rows are simply not there.
         list.SelectedItem = rows.Count == 0 ? null : Math.Clamp(selected, 0, rows.Count - 1);
         return overlay;
+    }
+
+    /// <summary>
+    /// Scrolls to the selection. Must run after the dialog is on screen: before layout the list has no
+    /// viewport to scroll, and a list taller than the dialog then opens part-way down with its first rows
+    /// simply missing.
+    /// </summary>
+    public void ScrollToSelection()
+    {
+        int wanted = List.SelectedItem ?? 0;
+
+        // Walk to the end and back: a freshly built list opens scrolled to the bottom, and asking it to
+        // show an item already inside its (stale) viewport does nothing.
+        List.MoveEnd();
+        List.MoveHome();
+
+        if (wanted > 0)
+        {
+            List.SelectedItem = wanted;
+            List.EnsureSelectedItemVisible();
+        }
     }
 
     /// <summary>Returns true when the key belonged to this dialog.</summary>
@@ -173,6 +197,7 @@ internal sealed class ListOverlay
 
         List.SetSource(new ObservableCollection<string>(_visible.Select(i => _all[i])));
         List.SelectedItem = _visible.Count == 0 ? null : 0;
+        List.EnsureSelectedItemVisible();
 
         _hint.Text = _filtering
             ? $" /{_filter}   esc/^g clear   enter select"
