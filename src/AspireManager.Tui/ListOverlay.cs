@@ -180,7 +180,7 @@ internal sealed class ListOverlay
             return;
         }
 
-        int index = List.SelectedItem is { } selected && selected >= 0 && selected < _visible.Count
+        int index = List.SelectedItem is { } selected and >= 0 && selected < _visible.Count
             ? selected
             : 0;
 

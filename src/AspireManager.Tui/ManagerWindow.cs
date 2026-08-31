@@ -325,7 +325,7 @@ internal sealed class ManagerWindow : Window
     }
 
     private ResourceRow? SelectedRow() =>
-        _resourceList.SelectedItem is { } index && index >= 0 && index < _rowModel.Count
+        _resourceList.SelectedItem is { } index and >= 0 && index < _rowModel.Count
             ? _rowModel[index]
             : null;
 
