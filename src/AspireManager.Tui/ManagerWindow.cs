@@ -387,6 +387,12 @@ internal sealed class ManagerWindow : Window
             _resourceList.SelectedItem = index;
             _resourceList.EnsureSelectedItemVisible();
         }
+        else
+        {
+            // Nothing matched. A stale index from the previous set would keep painting a selection band
+            // across a pane with no rows in it.
+            _resourceList.SelectedItem = null;
+        }
     }
 
     private void RenderLogs(bool force)
