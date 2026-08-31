@@ -125,3 +125,62 @@ public class ConnectionTests
         ShellModel.ConnectionTone(ConnectionState.Connecting).Should().Be(RowTone.Warning);
     }
 }
+
+/// <summary>
+/// Aspire is free to add states, health values and command states we have never seen. None of them may
+/// crash, and each has to fall somewhere sensible — these pin down where, so the choice is deliberate
+/// rather than accidental. Nothing here is bound to an enum, precisely so an unknown value cannot throw.
+/// </summary>
+public class UnknownValueTests
+{
+    private static AspireResource Resource(string state, string? health = null) =>
+        new("x-1", "x", "Project", state, health, null, null);
+
+    /// <summary>A state we do not know reads as inactive: grey, not a false alarm.</summary>
+    [Theory]
+    [InlineData("Starting")]
+    [InlineData("RuntimeUnhealthy")]
+    [InlineData("SomethingAspireAddsIn2027")]
+    public void UnknownStateIsInactiveNotFailed(string state) =>
+        ShellModel.Tone(new ResourceItem(Resource(state))).Should().Be(RowTone.Inactive);
+
+    /// <summary>Anything containing "Fail" is treated as a failure, whatever the rest of it says.</summary>
+    [Theory]
+    [InlineData("FailedToStart")]
+    [InlineData("RuntimeFailure")]
+    public void AnythingFailingReadsAsFailed(string state) =>
+        ShellModel.Tone(new ResourceItem(Resource(state))).Should().Be(RowTone.Failed);
+
+    /// <summary>
+    /// An unrecognised health value warns rather than passing silently — better a yellow letter that
+    /// prompts a look than a green one that lies.
+    /// </summary>
+    [Fact]
+    public void UnknownHealthWarns() =>
+        ShellModel.HealthTone(Resource("Running", "Recovering")).Should().Be(RowTone.Warning);
+
+    /// <summary>Commands fail closed: a state that is not exactly Enabled is not offered.</summary>
+    [Theory]
+    [InlineData("Hidden")]
+    [InlineData("SomethingNew")]
+    [InlineData(null)]
+    public void UnknownCommandStateIsNotOffered(string? state) =>
+        CommandPolicy.Classify("restart", new AspireCommand("Restart", null, state!, 1, null))
+            .Should().Be(CommandAvailability.Unavailable);
+
+    /// <summary>
+    /// The one place an unknown value hides something: only "running" counts as attachable, so an AppHost
+    /// reporting anything else is not offered. Conservative, but worth knowing.
+    /// </summary>
+    [Fact]
+    public void AppHostWithAnUnknownStatusIsNotOffered() =>
+        AppHostSelection.Select([new AppHost("/x/A.csproj", 1, "starting", null)], null)
+            .Should().BeOfType<NoAppHost>();
+
+    /// <summary>Every unknown value still renders a row rather than throwing.</summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("Whatever")]
+    public void UnknownValuesStillRender(string state) =>
+        ShellModel.Row(Resource(state, "Weird")).Should().NotBeNullOrEmpty();
+}

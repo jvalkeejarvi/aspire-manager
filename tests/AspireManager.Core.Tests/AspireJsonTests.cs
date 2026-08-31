@@ -150,3 +150,79 @@ public class LogDocumentTests
     public void UnusableInputIsNoLines(string json) =>
         AspireJson.ParseLogDocument(json).Should().BeEmpty();
 }
+
+/// <summary>
+/// Regression: `describe --follow` emits a resource with no `state` while it is restarting, and the record
+/// declares State non-nullable, so `StateMark` dereferenced null and took the application down.
+/// </summary>
+public class MissingFieldTests
+{
+    [Fact]
+    public void ResourceWithNoStateIsUsable()
+    {
+        AspireResource resource = AspireJson.ParseResource(
+            """{"name":"cosmos-abc","displayName":"cosmos","resourceType":"Container"}""")!;
+
+        resource.State.Should().NotBeNull();
+        ShellModel.StateMark(resource).Should().Be("?");
+        ShellModel.Row(resource).Should().NotBeNull();
+        ShellModel.Tone(new ResourceItem(resource)).Should().Be(RowTone.Inactive);
+    }
+
+    [Fact]
+    public void ExplicitNullStateIsAlsoHandled() =>
+        AspireJson.ParseResource(
+                """{"name":"c-1","displayName":"c","resourceType":"Container","state":null}""")!
+            .State.Should().NotBeNull();
+
+    [Fact]
+    public void MissingResourceTypeGetsAPlaceholder() =>
+        AspireJson.ParseResource("""{"name":"c-1","displayName":"c","state":"Running"}""")!
+            .ResourceType.Should().Be("Unknown");
+
+    /// <summary>Display name is what the log stream and commands key on; fall back rather than crash.</summary>
+    [Fact]
+    public void MissingDisplayNameFallsBackToTheName() =>
+        AspireJson.ParseResource("""{"name":"c-1","resourceType":"Container","state":"Running"}""")!
+            .DisplayName.Should().Be("c-1");
+
+    /// <summary>Without a name there is nothing to key on, so the line is dropped rather than stored.</summary>
+    [Theory]
+    [InlineData("""{"displayName":"c","state":"Running"}""")]
+    [InlineData("""{"name":null,"displayName":"c"}""")]
+    [InlineData("""{"name":""}""")]
+    public void ResourceWithoutANameIsDropped(string json) =>
+        AspireJson.ParseResource(json).Should().BeNull();
+
+    [Fact]
+    public void RowsRenderForAResourceMissingEverythingOptional()
+    {
+        AspireResource resource = AspireJson.ParseResource("""{"name":"x-1"}""")!;
+
+        IReadOnlyList<ResourceRow> rows = ShellModel.Rows([resource]);
+
+        rows.Select(ShellModel.RowText).Should().NotBeEmpty();
+        ShellModel.AvailableCommands(resource).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void LogLineWithNoContentIsUsable() =>
+        AspireJson.ParseLogLine("""{"resourceName":"cosmos","timestamp":"2026-08-31T10:00:00Z"}""")!
+            .Content.Should().BeEmpty();
+
+    /// <summary>A log line with no resource cannot be filed against one.</summary>
+    [Fact]
+    public void LogLineWithNoResourceIsDropped() =>
+        AspireJson.ParseLogLine("""{"content":"orphan","timestamp":"2026-08-31T10:00:00Z"}""")
+            .Should().BeNull();
+
+    [Fact]
+    public void AppHostWithNoPathIsDropped() =>
+        AspireJson.ParseAppHosts("""[{"appHostPid":1,"status":"running"},{"appHostPath":"/x/A.csproj"}]""")
+            .Should().ContainSingle().Which.AppHostPath.Should().Be("/x/A.csproj");
+
+    [Fact]
+    public void AppHostWithNoStatusIsNotRunning() =>
+        AppHostSelection.Select(AspireJson.ParseAppHosts("""[{"appHostPath":"/x/A.csproj"}]"""), null)
+            .Should().BeOfType<NoAppHost>();
+}
