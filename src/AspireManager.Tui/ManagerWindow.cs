@@ -398,7 +398,7 @@ internal sealed class ManagerWindow : Window
                 _logSignature = "";
                 _logLines = [];
                 _logMatches = [];
-                _logFrame.Title = _logFocused ? "[0] Logs *" : "[0] Logs";
+                _logFrame.Title = "[0] Logs";
                 _logSource.Update([], _logQuery);
                 _logList.SelectedItem = null;
             }
@@ -451,11 +451,10 @@ internal sealed class ManagerWindow : Window
         }
 
         string shared = _resources.HasAmbiguousLogs(selected) ? "  [shared name]" : "";
-        string focus = _logFocused ? " *" : "";
 
         // Scrolling away from the newest line stops the follow; say so, or the pane silently looks stale.
         string paused = Following() ? "" : "  [paused]";
-        _logFrame.Title = $"[0] Logs: {selected.DisplayName}{focus}{shared}{paused}";
+        _logFrame.Title = $"[0] Logs: {selected.DisplayName}{shared}{paused}";
     }
 
     private void OnKeyDown(object? sender, Key key)
@@ -1162,14 +1161,15 @@ internal sealed class ManagerWindow : Window
     }
 
     /// <summary>
-    /// The focused pane is numbered and marked in its title. Focus is tracked here rather than left to
-    /// Terminal.Gui's Tab traversal, which did not reliably land on the other pane's list.
+    /// The focused pane is shown by its border colour alone; the panels are numbered so they can be jumped
+    /// to. Focus is tracked here rather than left to Terminal.Gui's Tab traversal, which did not reliably
+    /// land on the other pane's list.
     /// </summary>
     private void FocusPane(Pane pane)
     {
         _pane = pane;
-        _appHostFrame.Title = $"[1] AppHost{(pane == Pane.AppHost ? " *" : "")}";
-        _resourceFrame.Title = $"[2] Resources{(pane == Pane.Resources ? " *" : "")}";
+        _appHostFrame.Title = "[1] AppHost";
+        _resourceFrame.Title = "[2] Resources";
         RenderLogTitle();
 
         // The AppHost panel holds no list, so focus goes to its frame: neither list should then paint a
