@@ -10,7 +10,7 @@ public sealed class Backoff(TimeSpan initial, TimeSpan max)
 
     public static Backoff Default() => new(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30));
 
-    public TimeSpan Current { get; private set; } = initial;
+    private TimeSpan Current { get; set; } = initial;
 
     /// <summary>Returns the delay to wait now, then doubles it for next time.</summary>
     public TimeSpan Next()

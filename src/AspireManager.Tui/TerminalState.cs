@@ -39,7 +39,7 @@ internal static class TerminalState
         }
     }
 
-    public static void Enter()
+    private static void Enter()
     {
         if (!IsSupported)
         {
