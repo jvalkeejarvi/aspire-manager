@@ -287,7 +287,7 @@ internal sealed class ManagerWindow : Window
     {
         if (LogFocused && _logQuery.Length > 0)
         {
-            string summary = Core.LogSearch.Summary(_logQuery, _logMatches.Count, _logMatchPos);
+            string summary = LogSearch.Summary(_logQuery, _logMatches.Count, _logMatchPos);
             return ($" {summary}", "   n next  N prev  esc/^g clear  tab back");
         }
 
@@ -428,7 +428,7 @@ internal sealed class ManagerWindow : Window
 
         _logLines = [.. lines.Select(ShellModel.LogRow)];
         _logSource.Update(_logLines, _logQuery);
-        _logMatches = Core.LogSearch.MatchingLines(_logLines, _logQuery);
+        _logMatches = LogSearch.MatchingLines(_logLines, _logQuery);
 
         if (lines.Count > 0)
         {
@@ -580,7 +580,7 @@ internal sealed class ManagerWindow : Window
         _logQuery = query;
         _logMatchPos = 0;
         _logSource.Update(_logLines, _logQuery);
-        _logMatches = Core.LogSearch.MatchingLines(_logLines, _logQuery);
+        _logMatches = LogSearch.MatchingLines(_logLines, _logQuery);
         JumpToMatch(0);
     }
 
@@ -605,22 +605,22 @@ internal sealed class ManagerWindow : Window
     {
         if (_logMatches.Count == 0)
         {
-            SetStatus(Core.LogSearch.Summary(_logQuery, 0, 0));
+            SetStatus(LogSearch.Summary(_logQuery, 0, 0));
             _logList.SetNeedsDraw();
             return;
         }
 
         _logMatchPos = delta == 0
             ? Math.Clamp(_logMatchPos, 0, _logMatches.Count - 1)
-            : Core.LogSearch.Advance(_logMatches.Count, _logMatchPos, delta);
+            : LogSearch.Advance(_logMatches.Count, _logMatchPos, delta);
 
-        if (Core.LogSearch.LineForPosition(_logMatches, _logMatchPos) is { } line)
+        if (LogSearch.LineForPosition(_logMatches, _logMatchPos) is { } line)
         {
             _logList.SelectedItem = line;
             _logList.EnsureSelectedItemVisible();
         }
 
-        SetStatus(Core.LogSearch.Summary(_logQuery, _logMatches.Count, _logMatchPos));
+        SetStatus(LogSearch.Summary(_logQuery, _logMatches.Count, _logMatchPos));
         RenderLogTitle();
     }
 
