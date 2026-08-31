@@ -5,7 +5,7 @@ namespace AspireManager.Core.Tests;
 
 public class LogSearchTests
 {
-    private static readonly string[] Lines =
+    private static readonly string[] _lines =
     [
         "12:00:01 starting up",
         "12:00:02 assigned tag to recipe",
@@ -44,18 +44,18 @@ public class LogSearchTests
 
     [Fact]
     public void FindsTheLinesContainingTheQuery() =>
-        LogSearch.MatchingLines(Lines, "assigned").Should().Equal(1, 3);
+        LogSearch.MatchingLines(_lines, "assigned").Should().Equal(1, 3);
 
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null)]
     public void BlankQueryMatchesNoLines(string? query) =>
-        LogSearch.MatchingLines(Lines, query).Should().BeEmpty();
+        LogSearch.MatchingLines(_lines, query).Should().BeEmpty();
 
     [Fact]
     public void UnmatchedQueryFindsNothing() =>
-        LogSearch.MatchingLines(Lines, "zzz").Should().BeEmpty();
+        LogSearch.MatchingLines(_lines, "zzz").Should().BeEmpty();
 
     /// <summary>n at the last match returns to the first, as in every editor.</summary>
     [Fact]

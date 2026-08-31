@@ -56,7 +56,7 @@ public sealed record ResourceItem(AspireResource Resource, bool Indented = true)
 /// </summary>
 public static class ShellModel
 {
-    private static readonly Dictionary<char, string> KeyCommands = new()
+    private static readonly Dictionary<char, string> _keyCommands = new()
     {
         ['r'] = "restart",
         ['s'] = "stop",
@@ -64,7 +64,7 @@ public static class ShellModel
     };
 
     public static string? CommandForKey(char key) =>
-        KeyCommands.TryGetValue(char.ToLowerInvariant(key), out string? command) ? command : null;
+        _keyCommands.TryGetValue(char.ToLowerInvariant(key), out string? command) ? command : null;
 
     /// <summary>
     /// One row of the resource pane: state initial, health initial, name. Initials rather than words

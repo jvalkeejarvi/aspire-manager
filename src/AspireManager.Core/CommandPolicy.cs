@@ -21,7 +21,7 @@ public enum CommandAvailability
 /// </summary>
 public static class CommandPolicy
 {
-    private static readonly HashSet<string> Instant = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> _instant = new(StringComparer.OrdinalIgnoreCase)
     {
         "start",
         "stop",
@@ -41,7 +41,7 @@ public static class CommandPolicy
             return CommandAvailability.Unavailable;
         }
 
-        return Instant.Contains(commandName)
+        return _instant.Contains(commandName)
             ? CommandAvailability.Instant
             : CommandAvailability.NeedsConfirmation;
     }

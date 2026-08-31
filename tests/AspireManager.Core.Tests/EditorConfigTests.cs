@@ -82,17 +82,17 @@ public class ConfigParsingTests
 
 public class EditorCommandLineTests
 {
-    private static readonly EditorSettings Both = new(
+    private static readonly EditorSettings _both = new(
         "emacsclient -n +{line} {file}",
         "emacsclient -n {file}");
 
     [Fact]
     public void LineTemplateIsUsedWhenThereIsALine() =>
-        EditorCommandLine.Choose(Both, 42).Should().Be((Both.Command, 42));
+        EditorCommandLine.Choose(_both, 42).Should().Be((_both.Command, 42));
 
     [Fact]
     public void NoLineTemplateIsUsedWhenThereIsNot() =>
-        EditorCommandLine.Choose(Both, null).Should().Be((Both.CommandNoLine, 1));
+        EditorCommandLine.Choose(_both, null).Should().Be((_both.CommandNoLine, 1));
 
     /// <summary>A config with only `command` still has to work without a line; line 1 is where files open.</summary>
     [Fact]

@@ -6,7 +6,7 @@ namespace AspireManager.Core.Tests;
 /// <summary>Payloads are captured verbatim from a real AppHost, trimmed only of fields the model ignores.</summary>
 public class AspireJsonTests
 {
-    private const string ProjectResource = """
+    private const string _projectResource = """
         {"name":"recipes-api-nfgpzdyc","displayName":"recipes-api","resourceType":"Project","state":"Running",
          "startTimestamp":"2026-08-31T10:13:59.913+00:00","healthStatus":"Healthy",
          "commands":{"rebuild":{"displayName":"Rebuild","description":"Stop the resource, rebuild.","state":"Enabled","sortOrder":3},
@@ -17,7 +17,7 @@ public class AspireJsonTests
     [Fact]
     public void ParsesResourceAndSeparatesNameFromDisplayName()
     {
-        AspireResource? resource = AspireJson.ParseResource(ProjectResource);
+        AspireResource? resource = AspireJson.ParseResource(_projectResource);
 
         resource.Should().NotBeNull();
         resource!.Name.Should().Be("recipes-api-nfgpzdyc");
@@ -31,7 +31,7 @@ public class AspireJsonTests
     [Fact]
     public void OmittedArgumentInputsParseAsNullRatherThanThrowing()
     {
-        AspireResource resource = AspireJson.ParseResource(ProjectResource)!;
+        AspireResource resource = AspireJson.ParseResource(_projectResource)!;
 
         resource.Commands!["restart"].ArgumentInputs.Should().BeNull();
     }
@@ -88,7 +88,7 @@ public class AspireJsonTests
     [Fact]
     public void ParsesWrappedSnapshotForm()
     {
-        string json = $"{{\"resources\":[{ProjectResource}]}}";
+        string json = $"{{\"resources\":[{_projectResource}]}}";
 
         AspireJson.ParseSnapshot(json).Should().HaveCount(1);
     }
@@ -108,7 +108,7 @@ public class LogDocumentTests
     /// `aspire logs` without --follow wraps everything in one pretty-printed document, unlike the NDJSON it
     /// streams with --follow. Captured verbatim.
     /// </summary>
-    private const string Document = """
+    private const string _document = """
         {
           "logs": [
             {
@@ -130,7 +130,7 @@ public class LogDocumentTests
     [Fact]
     public void ParsesTheWrappedDocument()
     {
-        IReadOnlyList<LogLine> logs = AspireJson.ParseLogDocument(Document);
+        IReadOnlyList<LogLine> logs = AspireJson.ParseLogDocument(_document);
 
         logs.Should().HaveCount(2);
         logs[0].Content.Should().Be("Release Version: EN20260810");

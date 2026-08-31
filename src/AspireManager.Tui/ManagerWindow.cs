@@ -17,10 +17,10 @@ namespace AspireManager.Tui;
 /// </summary>
 internal sealed class ManagerWindow : Window
 {
-    private const int PollMilliseconds = 200;
+    private const int _pollMilliseconds = 200;
 
     /// <summary>How long a footer message stays up before clearing itself, in poll ticks.</summary>
-    private const int StatusTicks = 5000 / PollMilliseconds;
+    private const int _statusTicks = 5000 / _pollMilliseconds;
 
     /// <summary>The three panes, numbered as lazygit numbers its panels.</summary>
     private enum Pane
@@ -200,7 +200,7 @@ internal sealed class ManagerWindow : Window
 
             // Plain Yellow, not BrightYellow: the bright one is nearly white and the filter reads as noise.
             // This is the gold git uses for its commit line.
-            Segment(filter, FilterColour);
+            Segment(filter, _filterColour);
             Segment(hint, null);
 
             driver.CurrentAttribute = baseline;
@@ -225,7 +225,7 @@ internal sealed class ManagerWindow : Window
         // type-to-search navigator, so r/s/b/c/q never reach a view-level handler. This hook runs first.
         app.Keyboard.KeyDown += OnKeyDown;
 
-        app.TimedEvents?.Add(TimeSpan.FromMilliseconds(PollMilliseconds), Refresh);
+        app.TimedEvents?.Add(TimeSpan.FromMilliseconds(_pollMilliseconds), Refresh);
     }
 
     /// <summary>Whichever AppHost is attached now; Program stops this one on exit.</summary>
@@ -238,7 +238,7 @@ internal sealed class ManagerWindow : Window
 
         // Transient by design: a message about something that already happened should not sit there
         // for the rest of the session pretending to be current.
-        _statusTicksLeft = status.Length > 0 ? StatusTicks : 0;
+        _statusTicksLeft = status.Length > 0 ? _statusTicks : 0;
         _footer.SetNeedsDraw();
     }
 
@@ -250,11 +250,11 @@ internal sealed class ManagerWindow : Window
         RenderAppHost();
     }
 
-    private static readonly Color FilterColour = Color.Parse("Yellow");
+    private static readonly Color _filterColour = Color.Parse("Yellow");
 
     // Only the focused panel is coloured, the way lazygit marks its active panel; the others keep the
     // terminal's own foreground. The `*` in the title says the same thing on a monochrome terminal.
-    private static readonly Color FocusedBorder = Color.Parse("BrightGreen");
+    private static readonly Color _focusedBorder = Color.Parse("BrightGreen");
 
     private static Color? ToneColour(RowTone tone) => tone switch
     {
@@ -275,7 +275,7 @@ internal sealed class ManagerWindow : Window
             Math.Max(10, _appHostFrame.Viewport.Width - 2));
     }
 
-    private const string Hints =
+    private const string _hints =
         " 1/2/0 panes   j/k move   / search   enter logs   r/s/b   c cmds   ? help   q quit";
 
     /// <summary>
@@ -285,7 +285,7 @@ internal sealed class ManagerWindow : Window
     /// </summary>
     private (string Query, string Tail) FooterParts()
     {
-        if (_logFocused && _logQuery.Length > 0)
+        if (LogFocused && _logQuery.Length > 0)
         {
             string summary = Core.LogSearch.Summary(_logQuery, _logMatches.Count, _logMatchPos);
             return ($" {summary}", "   n next  N prev  esc/^g clear  tab back");
@@ -294,12 +294,12 @@ internal sealed class ManagerWindow : Window
         string prefix = _filter.Length > 0 ? $" /{_filter}" : "";
         string tail = _status.Length > 0
             ? $"   {_status}"
-            : (prefix.Length > 0 ? "   esc clear  " : "") + Hints;
+            : (prefix.Length > 0 ? "   esc clear  " : "") + _hints;
 
         return (prefix, tail);
     }
 
-    private bool _logFocused => _pane == Pane.Logs;
+    private bool LogFocused => _pane == Pane.Logs;
 
     /// <summary>
     /// Colours a panel's border and, with it, its title. The Border adornment is not a View and has no
@@ -309,7 +309,7 @@ internal sealed class ManagerWindow : Window
     private void PaintBorder(FrameView frame, bool focused, params View[] content)
     {
         TuiAttribute attribute = focused
-            ? new TuiAttribute(FocusedBorder, _baseAttribute.Background, TextStyle.Bold)
+            ? new TuiAttribute(_focusedBorder, _baseAttribute.Background, TextStyle.Bold)
             : _baseAttribute;
 
         // Normal and Focus both set: a Scheme built from one attribute derives Focus by swapping
@@ -795,8 +795,8 @@ internal sealed class ManagerWindow : Window
 
     private void MoveInPane()
     {
-        ListKeys.VimMove(_logFocused ? _logList : _resourceList, LastKey!);
-        if (_logFocused)
+        ListKeys.VimMove(LogFocused ? _logList : _resourceList, LastKey!);
+        if (LogFocused)
         {
             RenderLogTitle();
         }
@@ -804,8 +804,8 @@ internal sealed class ManagerWindow : Window
 
     private void PageInPane()
     {
-        ListKeys.PageMove(_logFocused ? _logList : _resourceList, LastKey!);
-        if (_logFocused)
+        ListKeys.PageMove(LogFocused ? _logList : _resourceList, LastKey!);
+        if (LogFocused)
         {
             RenderLogTitle();
         }
@@ -843,7 +843,7 @@ internal sealed class ManagerWindow : Window
     private void NextPane()
     {
         // Leaving the pane leaves its search behind; a highlight you cannot navigate is just clutter.
-        if (_logFocused)
+        if (LogFocused)
         {
             ClearLogSearch();
         }

@@ -17,10 +17,10 @@ internal sealed class ResourceListSource(IApplication app) : IListDataSource
 {
     // Parsed once at startup rather than per row: an unparseable colour name would otherwise throw
     // mid-draw and take the application down, which is how BrightWhite was found not to exist.
-    private static readonly Color Healthy = Color.Parse("BrightGreen");
-    private static readonly Color Warning = Color.Parse("BrightYellow");
-    private static readonly Color Failed = Color.Parse("BrightRed");
-    private static readonly Color Inactive = Color.Parse("DarkGray");
+    private static readonly Color _healthy = Color.Parse("BrightGreen");
+    private static readonly Color _warning = Color.Parse("BrightYellow");
+    private static readonly Color _failed = Color.Parse("BrightRed");
+    private static readonly Color _inactive = Color.Parse("DarkGray");
 
     private IReadOnlyList<ResourceRow> _rows = [];
 
@@ -120,10 +120,10 @@ internal sealed class ResourceListSource(IApplication app) : IListDataSource
 
     private static Color? StatusColour(RowTone tone) => tone switch
     {
-        RowTone.Healthy => Healthy,
-        RowTone.Warning => Warning,
-        RowTone.Failed => Failed,
-        RowTone.Inactive => Inactive,
+        RowTone.Healthy => _healthy,
+        RowTone.Warning => _warning,
+        RowTone.Failed => _failed,
+        RowTone.Inactive => _inactive,
         _ => null,
     };
 }

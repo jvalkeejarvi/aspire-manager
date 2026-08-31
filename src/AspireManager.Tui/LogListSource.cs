@@ -14,8 +14,8 @@ namespace AspireManager.Tui;
 /// </summary>
 internal sealed class LogListSource(IApplication app) : IListDataSource
 {
-    private static readonly Color HighlightForeground = Color.Parse("Black");
-    private static readonly Color HighlightBackground = Color.Parse("Yellow");
+    private static readonly Color _highlightForeground = Color.Parse("Black");
+    private static readonly Color _highlightBackground = Color.Parse("Yellow");
 
     private IReadOnlyList<string> _lines = [];
     private string _query = "";
@@ -74,7 +74,7 @@ internal sealed class LogListSource(IApplication app) : IListDataSource
         // not a statement about what is being shown, so highlighting it from the resource pane is noise.
         TuiAttribute baseline = listView.GetAttributeForRole(
             selected && listView.HasFocus ? VisualRole.Focus : VisualRole.Normal);
-        TuiAttribute highlight = new(HighlightForeground, HighlightBackground);
+        TuiAttribute highlight = new(_highlightForeground, _highlightBackground);
         int used = 0;
 
         void Write(string text, bool matched)

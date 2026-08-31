@@ -5,7 +5,7 @@ namespace AspireManager.Core.Tests;
 
 public class HelpTextTests
 {
-    private static readonly (string, string)[] Sample =
+    private static readonly (string, string)[] _sample =
     [
         ("j / k", "move up and down"),
         ("q", "quit"),
@@ -16,26 +16,26 @@ public class HelpTextTests
     [Fact]
     public void DescriptionsAllStartInTheSameColumn()
     {
-        IReadOnlyList<string> rows = HelpText.Align(Sample);
+        IReadOnlyList<string> rows = HelpText.Align(_sample);
         IEnumerable<int> columns = rows
             .Where(static r => r.Length > 0)
-            .Zip(Sample.Where(static b => b.Item1.Length > 0), static (row, b) => row.Length - b.Item2.Length);
+            .Zip(_sample.Where(static b => b.Item1.Length > 0), static (row, b) => row.Length - b.Item2.Length);
 
         columns.Distinct().Should().ContainSingle();
     }
 
     [Fact]
     public void KeyComesFirstAndIsNotIndented() =>
-        HelpText.Align(Sample)[0].Should().StartWith("j / k").And.EndWith("move up and down");
+        HelpText.Align(_sample)[0].Should().StartWith("j / k").And.EndWith("move up and down");
 
     /// <summary>An empty pair is a separator, not a row of padding.</summary>
     [Fact]
     public void EmptyPairRendersAsABlankLine() =>
-        HelpText.Align(Sample)[2].Should().BeEmpty();
+        HelpText.Align(_sample)[2].Should().BeEmpty();
 
     [Fact]
     public void ColumnIsWideEnoughForTheLongestKey() =>
-        HelpText.Align(Sample).Where(static r => r.Length > 0)
+        HelpText.Align(_sample).Where(static r => r.Length > 0)
             .Should().AllSatisfy(static r => r.Should().Contain("   "));
 
     [Fact]

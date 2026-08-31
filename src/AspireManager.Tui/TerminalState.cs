@@ -12,12 +12,12 @@ internal static class TerminalState
     // Captured from what the driver itself emits at startup: alternate screen, cleared and homed, cursor
     // hidden, mouse reporting (1003/1015/1006), bracketed paste, application cursor keys and keypad, and
     // the kitty keyboard protocol pushed with flags 31.
-    private const string Setup = "\u001b[?1049h\u001b[2J\u001b[1;1H\u001b[?25l\u001b[?1003h\u001b[?1015h\u001b[?1006h\u001b[?2004h\u001b[?1h\u001b=\u001b[>31u";
+    private const string _setup = "\u001b[?1049h\u001b[2J\u001b[1;1H\u001b[?25l\u001b[?1003h\u001b[?1015h\u001b[?1006h\u001b[?2004h\u001b[?1h\u001b=\u001b[>31u";
 
     // The reverse. The kitty pop (CSI < u) comes first and matters most: left pushed, the terminal keeps
     // reporting keys to the shell in CSI-u form, which arrives at the prompt as text like "5u" and "1:3u".
     // Terminal.Gui also leaves application cursor-key and keypad modes on, which the shell would inherit.
-    private const string Teardown = "\u001b[<u\u001b[?2004l\u001b[?1003l\u001b[?1015l\u001b[?1006l\u001b[0m\u001b[?1049l\u001b[?25h\u001b[0 q\u001b[?1l\u001b>";
+    private const string _teardown = "\u001b[<u\u001b[?2004l\u001b[?1003l\u001b[?1015l\u001b[?1006l\u001b[0m\u001b[?1049l\u001b[?25h\u001b[0 q\u001b[?1l\u001b>";
 
     /// <summary>SIGSTOP, which cannot be caught or ignored - unlike SIGTSTP, which something here swallows.</summary>
     private static int StopSignal => OperatingSystem.IsMacOS() ? 17 : 19;
@@ -35,7 +35,7 @@ internal static class TerminalState
         // The Windows driver restores the console itself, and none of these sequences describe its state.
         if (IsSupported)
         {
-            Write(Teardown);
+            Write(_teardown);
         }
     }
 
@@ -46,7 +46,7 @@ internal static class TerminalState
             return;
         }
 
-        Write(Setup);
+        Write(_setup);
 
         // The shell restores its own line discipline when it takes the terminal back, so raw mode has to be
         // re-applied on resume. stty is the only handle on it without the driver's internals.
