@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <AssemblyName>aspire-manager</AssemblyName>
+        <!-- Only `publish -r` compiles natively; set here so the AOT analyzer runs on every build. -->
+        <PublishAot>true</PublishAot>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Terminal.Gui"/>
+        <ProjectReference Include="..\AspireManager.Core\AspireManager.Core.csproj"/>
+    </ItemGroup>
+
+</Project>

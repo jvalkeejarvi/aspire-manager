@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AspireManager.Core/AspireManager.Core.csproj" />
+    <Project Path="src/AspireManager.Tui/AspireManager.Tui.csproj" />
+  </Folder>
+  <Folder Name="/testapphost/">
+    <Project Path="testapphost/AspireManager.TestAppHost/AspireManager.TestAppHost.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AspireManager.Core.Tests/AspireManager.Core.Tests.csproj" />
+  </Folder>
+</Solution>

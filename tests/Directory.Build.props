@@ -1,0 +1,14 @@
+<Project>
+    <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))"/>
+    <PropertyGroup>
+        <!-- xunit.v3 hosts tests itself, so `dotnet test` launches the executables instead of VSTest.
+             VSTest-only switches (logger, filter, collect, runsettings) are silently ignored here. -->
+        <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+        <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+        <!-- xunit.v3 requires an executable test host; Microsoft.NET.Test.Sdk would set this for us,
+             but it is otherwise unused under the MTP runner. -->
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+</Project>
