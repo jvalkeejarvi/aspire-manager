@@ -64,7 +64,7 @@ public static class ShellModel
     };
 
     public static string? CommandForKey(char key) =>
-        _keyCommands.TryGetValue(char.ToLowerInvariant(key), out string? command) ? command : null;
+        _keyCommands.GetValueOrDefault(char.ToLowerInvariant(key));
 
     /// <summary>
     /// One row of the resource pane: state initial, health initial, name. Initials rather than words
