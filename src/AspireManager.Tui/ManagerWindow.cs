@@ -73,6 +73,7 @@ internal sealed class ManagerWindow : Window
     // needs a second Enter to close. One loop keeps key routing predictable.
     private Pane _pane = Pane.Resources;
     private IReadOnlyList<Binding> _bindings = [];
+    private readonly EditorSettings? _editor;
 
     /// <summary>The key currently being dispatched, so a binding's action can tell j from k.</summary>
     private Key? LastKey { get; set; }
@@ -98,8 +99,10 @@ internal sealed class ManagerWindow : Window
         AppHostSession session,
         Func<string, AppHostSession> createSession,
         ResourceStore resources,
-        LogStore logs)
+        LogStore logs,
+        EditorSettings? editor)
     {
+        _editor = editor;
         _app = app;
         _resourceSource = new ResourceListSource(app);
         _resourceList.Source = _resourceSource;
@@ -726,6 +729,11 @@ internal sealed class ManagerWindow : Window
             () => OpenPrimaryUrl(Selected()!), HasSelectedResource),
         new("O", "choose one of its URLs", Panes.Resources, Binding.Char('O'),
             () => OpenUrlPicker(Selected()!), HasSelectedResource),
+        new("e", "open its logs in your editor", Panes.Resources, Binding.Char('e'),
+            () => EditBuffered(null), HasSelectedResource),
+        new("E", "open its whole log history in your editor", Panes.Resources | Panes.Logs,
+            Binding.Char('E'), EditFullHistory, HasSelectedResource),
+
         new("g", "group by type on/off", Panes.Resources, Binding.Char('g'), ToggleGrouping),
         new("-", "fold every group", Panes.Resources, Binding.Char('-'), () => FoldAll(collapse: true)),
         new("=", "unfold every group", Panes.Resources, Binding.Char('='), () => FoldAll(collapse: false)),
@@ -738,6 +746,8 @@ internal sealed class ManagerWindow : Window
             },
             () => _filter.Length > 0),
 
+        new("e", "open these logs at the selected line", Panes.Logs, Binding.Char('e'),
+            () => EditBuffered((_logList.SelectedItem ?? 0) + 1), HasSelectedResource),
         new("/", "search these logs", Panes.Logs, Binding.Char('/'), OpenLogSearch),
         new("n / N", "next and previous match", Panes.Logs, Binding.AnyChar('n', 'N'),
             () => JumpToMatch((char)LastKey!.AsRune.Value == 'n' ? 1 : -1), SearchingLogs),
@@ -825,6 +835,52 @@ internal sealed class ManagerWindow : Window
             Pane.Resources => Pane.Logs,
             _ => Pane.AppHost,
         });
+    }
+
+    /// <summary>
+    /// Opens what the pane holds. The file is exactly the buffered lines, so the selected row's number is
+    /// the file's line number with no mapping.
+    /// </summary>
+    private void EditBuffered(int? line)
+    {
+        if (Selected() is not { } resource)
+        {
+            return;
+        }
+
+        string file = LogSnapshot.Write(_session.Path, resource.DisplayName, _logLines);
+        SetStatus(EditorLauncher.Open(_editor, file, line));
+    }
+
+    /// <summary>
+    /// Opens everything the AppHost still has, which is far more than the 500-line pane buffer — so there is
+    /// no line to jump to and it opens at the top.
+    /// </summary>
+    private void EditFullHistory()
+    {
+        if (Selected() is not { } resource)
+        {
+            return;
+        }
+
+        // ponytail: blocks the loop for the fetch, like the other CLI round-trips here.
+        IReadOnlyList<LogLine> history = _session.Cli
+            .FetchLogsAsync(resource.DisplayName, CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+
+        if (history.Count == 0)
+        {
+            SetStatus($"no logs for {resource.DisplayName}");
+            return;
+        }
+
+        string file = LogSnapshot.Write(
+            _session.Path,
+            resource.DisplayName,
+            history.Select(l => ShellModel.LogRow(l with { Content = AnsiText.Strip(l.Content) })));
+
+        SetStatus(EditorLauncher.Open(_editor, file, null));
     }
 
     private void OpenPalette()

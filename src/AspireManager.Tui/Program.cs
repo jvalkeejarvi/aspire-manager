@@ -59,6 +59,8 @@ if (appHostPath is null)
     return 1;
 }
 
+(AspireManagerConfig? config, string? configError) = ConfigFile.Load(ConfigFile.DefaultPath);
+
 ResourceStore resources = new();
 LogStore logs = new();
 
@@ -67,8 +69,13 @@ AppHostSession Create(string path) =>
     new(path, resources, logs, (state, retryIn) => window?.SetConnection(state, retryIn));
 
 AppHostSession session = Create(appHostPath);
-window = new ManagerWindow(app, session, Create, resources, logs);
+window = new ManagerWindow(app, session, Create, resources, logs, config?.Editor);
 session.Start();
+
+if (configError is not null)
+{
+    window.SetStatus(configError);
+}
 
 try
 {

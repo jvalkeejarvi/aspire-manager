@@ -102,3 +102,51 @@ public class AspireJsonTests
     public void ReturnsNullForBlankOrTruncatedLines(string line) =>
         AspireJson.ParseResource(line).Should().BeNull();
 }
+
+public class LogDocumentTests
+{
+    /// <summary>
+    /// `aspire logs` without --follow wraps everything in one pretty-printed document, unlike the NDJSON it
+    /// streams with --follow. Captured verbatim.
+    /// </summary>
+    private const string Document = """
+        {
+          "logs": [
+            {
+              "resourceName": "cosmos",
+              "timestamp": "2026-08-31T10:13:36.910Z",
+              "content": "Release Version: EN20260810",
+              "isError": false
+            },
+            {
+              "resourceName": "cosmos",
+              "timestamp": "2026-08-31T10:13:37.100Z",
+              "content": "started",
+              "isError": true
+            }
+          ]
+        }
+        """;
+
+    [Fact]
+    public void ParsesTheWrappedDocument()
+    {
+        IReadOnlyList<LogLine> logs = AspireJson.ParseLogDocument(Document);
+
+        logs.Should().HaveCount(2);
+        logs[0].Content.Should().Be("Release Version: EN20260810");
+        logs[0].ResourceName.Should().Be("cosmos");
+        logs[1].IsError.Should().BeTrue();
+    }
+
+    [Fact]
+    public void EmptyDocumentIsNoLines() =>
+        AspireJson.ParseLogDocument("""{"logs":[]}""").Should().BeEmpty();
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not json")]
+    [InlineData("{}")]
+    public void UnusableInputIsNoLines(string json) =>
+        AspireJson.ParseLogDocument(json).Should().BeEmpty();
+}

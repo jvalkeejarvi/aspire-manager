@@ -57,10 +57,14 @@ public sealed record AppHost(
 [JsonSerializable(typeof(LogLine))]
 [JsonSerializable(typeof(AppHost[]))]
 [JsonSerializable(typeof(DescribeSnapshot))]
+[JsonSerializable(typeof(LogDocument))]
 internal sealed partial class AspireJsonContext : JsonSerializerContext;
 
 /// <summary>`aspire describe` without --follow wraps its resources; with --follow it emits them bare.</summary>
 internal sealed record DescribeSnapshot(IReadOnlyList<AspireResource> Resources);
+
+/// <summary>`aspire logs` does the same: NDJSON with --follow, a wrapped pretty-printed document without.</summary>
+internal sealed record LogDocument(IReadOnlyList<LogLine> Logs);
 
 /// <summary>Parses the NDJSON the aspire CLI emits. Source-generated throughout so the TUI stays AOT-clean.</summary>
 public static class AspireJson
@@ -76,6 +80,10 @@ public static class AspireJson
     /// <summary>The whole document from <c>aspire ps --format Json</c>.</summary>
     public static IReadOnlyList<AppHost> ParseAppHosts(string json) =>
         TryParse(json, static j => JsonSerializer.Deserialize(j, AspireJsonContext.Default.AppHostArray)) ?? [];
+
+    /// <summary>The whole document from <c>aspire logs --format Json</c> without --follow.</summary>
+    public static IReadOnlyList<LogLine> ParseLogDocument(string json) =>
+        TryParse(json, static j => JsonSerializer.Deserialize(j, AspireJsonContext.Default.LogDocument))?.Logs ?? [];
 
     /// <summary>The whole document from <c>aspire describe --format Json</c> without --follow.</summary>
     public static IReadOnlyList<AspireResource> ParseSnapshot(string json) =>

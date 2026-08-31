@@ -103,6 +103,25 @@ public sealed class AspireCli(string appHostPath, string executable = "aspire")
         }
     }
 
+    /// <summary>
+    /// The whole log for one resource, fetched once rather than followed. Used for "open everything in an
+    /// editor", where the 500-line pane buffer is not enough.
+    /// </summary>
+    public async Task<IReadOnlyList<LogLine>> FetchLogsAsync(string displayName, CancellationToken ct)
+    {
+        CommandResult result = await RunToCompletionAsync(
+            ["logs", displayName, "--format", "Json", "--timestamps", "--nologo", "--non-interactive", "--apphost", appHostPath],
+            ct);
+
+        if (!result.Success)
+        {
+            return [];
+        }
+
+        // Without --follow the CLI emits one pretty-printed {"logs":[...]} document, not NDJSON.
+        return AspireJson.ParseLogDocument(result.Output);
+    }
+
     /// <summary><paramref name="displayName"/>, not the suffixed name — the CLI accepts both, but the
     /// suffixed one is not what the UI is holding.</summary>
     public Task<CommandResult> RunCommandAsync(string displayName, string command, CancellationToken ct) =>
