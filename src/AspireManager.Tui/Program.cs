@@ -5,6 +5,11 @@ using Terminal.Gui.App;
 
 using CancellationTokenSource cts = new();
 
+// Set once the UI exists. Cancelling the token is not enough to stop Terminal.Gui: its loop blocks reading
+// stdin, so it notices nothing until a key arrives — on a signal, with nobody typing, the process would
+// simply keep running. Tear down here instead and exit.
+Action? shutdown = null;
+
 // Not just Ctrl-C: on SIGTERM or a closed terminal the `finally` blocks in AspireCli must still run, or
 // the `aspire --follow` children outlive us and keep streaming from the AppHost forever.
 using PosixSignalRegistration sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, Handle);
@@ -23,6 +28,7 @@ void Handle(PosixSignalContext context)
     // both signal registrations are unregistered before `cts` is. Once the source is disposed there is
     // nothing left that could invoke this handler.
     cts.Cancel();
+    shutdown?.Invoke();
 }
 
 string? requested = args.FirstOrDefault(a => !a.StartsWith('-'));
@@ -76,6 +82,24 @@ AppHostSession Create(string path) =>
 AppHostSession session = Create(appHostPath);
 window = new ManagerWindow(app, session, Create, resources, logs, config?.Editor);
 session.Start();
+
+shutdown = () =>
+{
+    // Bounded and best effort: what matters is that the `aspire --follow` children are killed and the
+    // terminal handed back. Then exit directly — the run loop this would otherwise unwind through is
+    // blocked on input and will not return on its own.
+    try
+    {
+        window?.CurrentSession.StopAsync().Wait(TimeSpan.FromSeconds(3));
+    }
+    catch (Exception e) when (e is AggregateException or OperationCanceledException)
+    {
+        // Shutting down anyway.
+    }
+
+    TerminalState.Leave();
+    TerminalState.HardExit(0);
+};
 
 if (configError is not null)
 {
