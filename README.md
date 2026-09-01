@@ -155,6 +155,29 @@ The editor is never waited on — pass whatever flag yours needs to return immed
 There is deliberately no default. Without this section `e` says so rather than guessing at `$EDITOR` and
 possibly blocking the whole UI.
 
+### Groups at startup
+
+Which type groups start folded, and how the pane is arranged:
+
+```json
+{
+  "groups": {
+    "mode": "grouped",
+    "default": "collapsed",
+    "except": ["Project", "AzureCosmosDB*"]
+  }
+}
+```
+
+`mode` is `grouped`, `typeSuffix` or `plain` — where `g` starts, not where it has to stay. `default` is
+`collapsed` or `expanded`, and `except` lists the types that go the other way, matched case-insensitively
+with a trailing `*` for a prefix. A value that cannot be read is reported in the status line and falls back
+to `grouped` / `expanded`; a name matching no type is silent, since types come and go with what is running.
+
+This is a standing rule, not a one-time seed: a resource type first seen mid-session, or every type after
+`^r` switches AppHost, starts the way the config says. Folding by hand overrides it for that type until you
+quit — including `-` and `=`, which speak only for the groups on screen when you press them.
+
 `e` writes what the log pane holds, so the line you are on is the line the editor opens. `E` fetches the
 AppHost's entire history instead and opens at the top. Both go to
 `$TMPDIR/aspire-manager/<apphost>/<resource>.log`, one file per resource, overwritten each time so your

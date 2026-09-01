@@ -10,7 +10,7 @@ namespace AspireManager.Core;
 public sealed record EditorSettings(string? Command = null, string? CommandNoLine = null);
 
 /// <summary><c>~/.aspire-manager.json</c>.</summary>
-public sealed record AspireManagerConfig(EditorSettings? Editor = null);
+public sealed record AspireManagerConfig(EditorSettings? Editor = null, GroupSettings? Groups = null);
 
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

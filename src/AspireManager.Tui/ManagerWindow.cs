@@ -59,8 +59,10 @@ internal sealed class ManagerWindow : Window
     private readonly LogListSource _logSource;
     private IReadOnlyList<ResourceRow> _rowModel = [];
     private List<string> _rows = [];
-    private readonly HashSet<string> _collapsed = new(StringComparer.Ordinal);
-    private GroupMode _mode = GroupMode.Grouped;
+    // Only the types the user has folded by hand this session; everything else asks the policy, so a type
+    // first seen mid-session obeys the configuration too.
+    private readonly Dictionary<string, bool> _sessionFolds = new(StringComparer.Ordinal);
+    private GroupMode _mode;
     private string _logSignature = "";
     private string _status = "";
     private int _statusTicksLeft;
@@ -73,6 +75,7 @@ internal sealed class ManagerWindow : Window
     private Pane _pane = Pane.Resources;
     private IReadOnlyList<Binding> _bindings = [];
     private readonly EditorSettings? _editor;
+    private readonly GroupPolicy _groups;
 
     /// <summary>The key currently being dispatched, so a binding's action can tell j from k.</summary>
     private Key? LastKey { get; set; }
@@ -100,9 +103,12 @@ internal sealed class ManagerWindow : Window
         Func<string, AppHostSession> createSession,
         ResourceStore resources,
         LogStore logs,
-        EditorSettings? editor)
+        EditorSettings? editor,
+        GroupPolicy groups)
     {
         _editor = editor;
+        _groups = groups;
+        _mode = groups.Mode;
         _app = app;
         _resourceSource = new ResourceListSource(app);
         _resourceList.Source = _resourceSource;
@@ -352,8 +358,8 @@ internal sealed class ManagerWindow : Window
     /// </summary>
     private void Rebuild()
     {
-        IReadOnlyList<ResourceRow> model =
-            ShellModel.Rows(_resources.Resources(), _collapsed, _filter, _mode);
+        IReadOnlyList<AspireResource> resources = _resources.Resources();
+        IReadOnlyList<ResourceRow> model = ShellModel.Rows(resources, CollapsedTypes(resources), _filter, _mode);
         List<string> rows = [.. model.Select(ShellModel.RowText)];
 
         if (rows.SequenceEqual(_rows))
@@ -518,7 +524,9 @@ internal sealed class ManagerWindow : Window
         _resources.Clear();
         _logs.Clear();
         _filter = "";
-        _collapsed.Clear();
+
+        // Back to the configured folds: the previous AppHost's types say nothing about this one's.
+        _sessionFolds.Clear();
         _rows = [];
         _rowModel = [];
         _logSignature = "";
@@ -1032,17 +1040,27 @@ internal sealed class ManagerWindow : Window
         _footer.SetNeedsDraw();
     }
 
-    /// <summary>Folds or unfolds every group at once.</summary>
+    /// <summary>
+    /// The types folded right now: what the user folded by hand, and the configured state for the rest.
+    /// </summary>
+    private HashSet<string> CollapsedTypes(IReadOnlyList<AspireResource> resources) =>
+        [.. resources
+            .Select(static r => r.ResourceType)
+            .Distinct(StringComparer.Ordinal)
+            .Where(IsCollapsed)];
+
+    private bool IsCollapsed(string resourceType) =>
+        _sessionFolds.TryGetValue(resourceType, out bool folded) ? folded : _groups.IsCollapsed(resourceType);
+
+    /// <summary>
+    /// Folds or unfolds every group at once. Only the types on screen: a group appearing afterwards was
+    /// not part of "every group" and keeps following the configuration.
+    /// </summary>
     private void FoldAll(bool collapse)
     {
-        _collapsed.Clear();
-
-        if (collapse)
+        foreach (string type in _resources.Resources().Select(static r => r.ResourceType).Distinct(StringComparer.Ordinal))
         {
-            foreach (string type in _resources.Resources().Select(static r => r.ResourceType).Distinct())
-            {
-                _collapsed.Add(type);
-            }
+            _sessionFolds[type] = collapse;
         }
 
         Rebuild();
@@ -1058,12 +1076,7 @@ internal sealed class ManagerWindow : Window
             return;
         }
 
-        string type = header.ResourceType;
-
-        if (!_collapsed.Remove(type))
-        {
-            _collapsed.Add(type);
-        }
+        _sessionFolds[header.ResourceType] = !IsCollapsed(header.ResourceType);
 
         Rebuild();
         RenderLogs(force: true);

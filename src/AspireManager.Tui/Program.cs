@@ -74,6 +74,8 @@ if (appHostPath is null)
 }
 
 (AspireManagerConfig? config, string? configError) = ConfigFile.Load(ConfigFile.DefaultPath);
+(GroupPolicy groups, string? groupsWarning) = GroupPolicy.From(config?.Groups);
+configError ??= groupsWarning;
 
 ResourceStore resources = new();
 LogStore logs = new();
@@ -88,7 +90,7 @@ AppHostSession Create(string path) =>
     new(path, resources, logs, (state, retryIn) => window?.SetConnection(state, retryIn));
 
 AppHostSession session = Create(appHostPath);
-window = new ManagerWindow(app, session, Create, resources, logs, config?.Editor);
+window = new ManagerWindow(app, session, Create, resources, logs, config?.Editor, groups);
 session.Start();
 
 shutdown = () =>
