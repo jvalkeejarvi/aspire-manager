@@ -57,6 +57,11 @@ internal sealed class AppHostSession
                     switch (update)
                     {
                         case StreamConnected:
+                            // Every AppHost run gives its resources a fresh random suffix in `name`, which
+                            // is the store's key, so a restart would leave the previous run's copies beside
+                            // the new ones rather than overwriting them. The first update of the connection
+                            // follows immediately, so the pane is never left empty for long.
+                            _resources.Clear();
                             _onConnection(ConnectionState.Connected, TimeSpan.Zero);
                             break;
 
