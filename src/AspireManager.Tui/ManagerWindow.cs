@@ -521,6 +521,10 @@ internal sealed class ManagerWindow : Window
         // ponytail: blocks the loop while the streams stop (bounded at 3s). Worth async only if it drags.
         _session.StopAsync().GetAwaiter().GetResult();
 
+        Recents.Save(
+            ConfigFile.RecentsPath,
+            Recents.Record(Recents.Load(ConfigFile.RecentsPath), path, DateTimeOffset.Now));
+
         _resources.Clear();
         _logs.Clear();
         _filter = "";
@@ -952,23 +956,52 @@ internal sealed class ManagerWindow : Window
             .GetAwaiter()
             .GetResult();
 
-        List<AppHost> running = [.. AppHostSelection.Sorted(hosts.Where(static h =>
-            string.Equals(h.Status, "running", StringComparison.OrdinalIgnoreCase)))];
+        // The workspace scan is a second in a monorepo and this dialog opens on a keypress, so the list is
+        // what is running plus what we have attached to before — no scan here.
+        IReadOnlyList<AppHostOption> options = AppHostOptions.Build(
+            hosts,
+            Recents.Load(ConfigFile.RecentsPath),
+            [],
+            DateTimeOffset.Now);
 
-        if (running.Count == 0)
+        if (options.Count == 0)
         {
-            SetStatus("no running AppHosts");
+            SetStatus("no running or recent AppHosts");
             return;
         }
 
-        IReadOnlyList<string> rows = [.. running.Select(h =>
-            (AppHostSelection.SamePath(h.AppHostPath, _session.Path) ? "* " : "  ") + AppHostSelection.Label(h))];
-
         // Open on the host we are attached to, so Enter is a no-op rather than a surprise switch.
-        int current = running.FindIndex(h => AppHostSelection.SamePath(h.AppHostPath, _session.Path));
+        int current = options.ToList().FindIndex(o => AppHostSelection.SamePath(o.Path, _session.Path));
 
-        ShowList("Switch AppHost", rows, " j/k move   enter attach   esc/^g cancel", Math.Max(current, 0),
-            index => SwitchTo(running[index].AppHostPath));
+        ShowList("Switch AppHost", AppHostOptions.Rows(options, _session.Path),
+            " j/k move   enter attach or start   esc/^g cancel", Math.Max(current, 0),
+            index => AttachTo(options[index]));
+    }
+
+    /// <summary>Attaches, starting the AppHost first when it is not running.</summary>
+    private void AttachTo(AppHostOption option)
+    {
+        if (!option.Running)
+        {
+            SetStatus($"starting {option.Name} …");
+
+            // Drawn by hand: `aspire start` blocks for seconds, and the run loop cannot repaint while it does.
+            _app.LayoutAndDraw(true);
+
+            CommandResult result = _session.Cli.StartAppHostAsync(option.Path, CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+
+            if (!result.Success)
+            {
+                SetStatus(AnsiText.Strip(result.Output)
+                    .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .LastOrDefault() ?? $"could not start {option.Name}");
+                return;
+            }
+        }
+
+        SwitchTo(option.Path);
     }
 
     private void OpenUrlPicker(AspireResource resource)

@@ -75,9 +75,15 @@ public class ConfigParsingTests
         }
     }
 
+    /// <summary>One directory per platform convention, resolved by the runtime rather than by us.</summary>
     [Fact]
-    public void DefaultPathIsInTheHomeDirectory() =>
-        ConfigFile.DefaultPath.Should().EndWith(".aspire-manager.json");
+    public void ConfigAndRecentsShareThePlatformDirectory()
+    {
+        ConfigFile.DefaultPath.Should().Be(Path.Combine(ConfigFile.Directory, "config.json"));
+        ConfigFile.RecentsPath.Should().Be(Path.Combine(ConfigFile.Directory, "recents.json"));
+        ConfigFile.Directory.Should().EndWith(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "aspire-manager"));
+    }
 }
 
 public class EditorCommandLineTests

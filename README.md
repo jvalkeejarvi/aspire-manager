@@ -46,7 +46,10 @@ dotnet run --project src/AspireManager.Tui            # attaches to the running 
 dotnet run --project src/AspireManager.Tui path/to/AppHost.csproj
 ```
 
-With no argument it attaches to the only running AppHost, and asks which one if several are up.
+With no argument it attaches to the only running AppHost, and asks which one if several are up. If none is
+running, it offers the AppHosts you have attached to before and any it finds in the current directory, and
+starts the one you pick — the workspace scan costs about a second in a monorepo, so it only ever runs on
+that path. `^r` offers the same list while the tool is open, starting the AppHost first when it is not up.
 
 A native binary, if you would rather have one on your `PATH`:
 
@@ -131,7 +134,13 @@ first. Commands needing arguments are listed but not offered, since this does no
 
 ## Configuration
 
-Optional, at `~/.aspire-manager.json`. Comments and trailing commas are allowed.
+Optional, at `config.json` in the tool's directory — `~/Library/Application Support/aspire-manager` on
+macOS, `~/.config/aspire-manager` on Linux, `%APPDATA%\aspire-manager` on Windows. Comments and trailing
+commas are allowed.
+
+Beside it, `recents.json` records the AppHosts you have attached to, ten at most, so they can be offered
+when none is running. It is written by the tool, which is why it is not part of the config: rewriting a
+hand-edited file would drop your comments.
 
 ```json
 {

@@ -32,15 +32,32 @@ void Handle(PosixSignalContext context)
 }
 
 string? requested = args.FirstOrDefault(a => !a.StartsWith('-'));
+
+// Not tied to any one AppHost: `ps`, `ls` and `start` are how we find out which there are.
+AspireCli discovery = new(".");
+
 IReadOnlyList<AppHost> hosts = requested is null
-    ? await new AspireCli(".").ListAppHostsAsync(cts.Token)
+    ? await discovery.ListAppHostsAsync(cts.Token)
     : [];
 
 AppHostChoice choice = AppHostSelection.Select(hosts, requested);
+IReadOnlyList<AppHostOption> offer = [];
+
+// The workspace scan costs about a second in a monorepo, so it happens only here — the path where the
+// alternative is telling the user there is nothing to attach to and exiting.
 if (choice is NoAppHost)
 {
-    Console.Error.WriteLine("no running AppHosts; start one with `aspire run`");
-    return 1;
+    offer = AppHostOptions.Build(
+        hosts,
+        Recents.Load(ConfigFile.RecentsPath),
+        await discovery.ListCandidatesAsync(cts.Token),
+        DateTimeOffset.Now);
+
+    if (offer.Count == 0)
+    {
+        Console.Error.WriteLine("no AppHost running, used recently, or found here; start one with `aspire run`");
+        return 1;
+    }
 }
 
 IApplication app = Application.Create();
@@ -59,10 +76,26 @@ if (app.Driver is { } driver)
 // back with the wrong cursor and arrow keys can misbehave. Put them back the way we found them.
 void RestoreTerminal() => TerminalState.Leave();
 
+// The CLI's own message on failure, as one line: it is going into a dialog's help line.
+string? Start(string path)
+{
+    CommandResult result = discovery.StartAppHostAsync(path, cts.Token).GetAwaiter().GetResult();
+
+    return result.Success
+        ? null
+        : AnsiText.Strip(result.Output)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault() ?? "could not start it";
+}
+
 string? appHostPath = choice switch
 {
     UseAppHost use => use.Path,
-    ChooseAppHost pick => Modal.PickAppHost(app, pick.Candidates),
+    ChooseAppHost pick => Modal.PickAppHost(
+        app,
+        AppHostOptions.Build(pick.Candidates, [], [], DateTimeOffset.Now),
+        Start),
+    NoAppHost => Modal.PickAppHost(app, offer, Start),
     _ => null,
 };
 
@@ -88,6 +121,8 @@ ManagerWindow? window = null;
 AppHostSession Create(string path) =>
     // ReSharper disable once AccessToModifiedClosure
     new(path, resources, logs, (state, retryIn) => window?.SetConnection(state, retryIn));
+
+Recents.Save(ConfigFile.RecentsPath, Recents.Record(Recents.Load(ConfigFile.RecentsPath), appHostPath, DateTimeOffset.Now));
 
 AppHostSession session = Create(appHostPath);
 window = new ManagerWindow(app, session, Create, resources, logs, config?.Editor, groups);

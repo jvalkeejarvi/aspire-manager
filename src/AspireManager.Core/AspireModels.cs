@@ -52,8 +52,12 @@ public sealed record AppHost(
     string Status,
     string? DashboardUrl);
 
+/// <summary>One AppHost project found in the workspace by <c>aspire ls</c>; it need not be running.</summary>
+public sealed record AppHostCandidate(string Path, string? Status = null);
+
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(AspireResource))]
+[JsonSerializable(typeof(AppHostCandidate[]))]
 [JsonSerializable(typeof(LogLine))]
 [JsonSerializable(typeof(AppHost[]))]
 [JsonSerializable(typeof(DescribeSnapshot))]
@@ -114,6 +118,13 @@ public static class AspireJson
         .. (TryParse(json, static j => JsonSerializer.Deserialize(j, AspireJsonContext.Default.AppHostArray)) ?? [])
             .Where(static h => !string.IsNullOrEmpty(h.AppHostPath))
             .Select(static h => h with { Status = h.Status }),
+    ];
+
+    /// <summary>The whole document from <c>aspire ls --format Json</c>.</summary>
+    public static IReadOnlyList<AppHostCandidate> ParseCandidates(string json) =>
+    [
+        .. (TryParse(json, static j => JsonSerializer.Deserialize(j, AspireJsonContext.Default.AppHostCandidateArray)) ?? [])
+            .Where(static c => !string.IsNullOrEmpty(c.Path)),
     ];
 
     /// <summary>The whole document from <c>aspire logs --format Json</c> without --follow.</summary>

@@ -47,6 +47,9 @@ internal sealed class ListOverlay
 
     public FrameView Frame { get; }
 
+    /// <summary>Replaces the help line, for progress and errors that belong to this dialog.</summary>
+    public void ShowMessage(string text) => _hint.Text = text;
+
     public ListView List { get; }
 
     public static ListOverlay Build(

@@ -19,12 +19,25 @@ public sealed record AspireManagerConfig(EditorSettings? Editor = null, GroupSet
     ReadCommentHandling = JsonCommentHandling.Skip,
     AllowTrailingCommas = true)]
 [JsonSerializable(typeof(AspireManagerConfig))]
+[JsonSerializable(typeof(RecentAppHost[]))]
 internal sealed partial class ConfigJsonContext : JsonSerializerContext;
 
 public static class ConfigFile
 {
-    public static string DefaultPath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".aspire-manager.json");
+    /// <summary>
+    /// Where this tool keeps everything: <c>~/Library/Application Support/aspire-manager</c> on macOS,
+    /// <c>~/.config/aspire-manager</c> on Linux, <c>%APPDATA%\aspire-manager</c> on Windows. One call
+    /// resolves all three, which is why the state is not scattered across hand-rolled per-OS paths.
+    /// </summary>
+    public static string Directory =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "aspire-manager");
+
+    public static string DefaultPath => Path.Combine(Directory, "config.json");
+
+    /// <summary>Beside the config, but written by the tool rather than by hand.</summary>
+    public static string RecentsPath => Path.Combine(Directory, "recents.json");
 
     /// <summary>
     /// Reads the config. A missing file is not an error — it simply means nothing is configured — but a

@@ -14,8 +14,15 @@ namespace AspireManager.Tui;
 /// </summary>
 internal static class Modal
 {
-    /// <summary>Returns the chosen AppHost path, or null if the user backed out.</summary>
-    public static string? PickAppHost(IApplication app, IReadOnlyList<AppHost> candidates)
+    /// <summary>
+    /// Returns the AppHost to attach to, or null if the user backed out. An option that is not running is
+    /// started first, by <paramref name="start"/>, which returns a message if it could not be: the dialog
+    /// then stays open with that message rather than dropping the user back at a bare shell.
+    /// </summary>
+    public static string? PickAppHost(
+        IApplication app,
+        IReadOnlyList<AppHostOption> options,
+        Func<string, string?> start)
     {
         string? chosen = null;
 
@@ -30,14 +37,32 @@ internal static class Modal
             BorderStyle = LineStyle.None,
         };
 
-        ListOverlay overlay = ListOverlay.Build(
+        ListOverlay? overlay = null;
+        overlay = ListOverlay.Build(
             "Select AppHost",
-            [.. candidates.Select(AppHostSelection.Label)],
-            " j/k move   enter select   esc/^g quit",
+            AppHostOptions.Rows(options),
+            " j/k move   enter attach or start   esc/^g quit",
             0,
             index =>
             {
-                chosen = candidates[index].AppHostPath;
+                AppHostOption option = options[index];
+
+                if (!option.Running)
+                {
+                    // Drawn by hand: `start` blocks for as long as the CLI takes to build, and the run
+                    // loop cannot repaint while it does.
+                    overlay!.ShowMessage($" starting {option.Name} …");
+                    app.LayoutAndDraw(true);
+
+                    if (start(option.Path) is { } error)
+                    {
+                        overlay.ShowMessage($" {error}");
+                        app.LayoutAndDraw(true);
+                        return;
+                    }
+                }
+
+                chosen = option.Path;
                 app.RequestStop(window);
             },
             () => app.RequestStop(window));

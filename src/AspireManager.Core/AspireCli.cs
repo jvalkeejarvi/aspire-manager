@@ -32,6 +32,29 @@ public sealed class AspireCli(string appHostPath, string executable = "aspire")
     }
 
     /// <summary>
+    /// AppHost projects in the working directory, running or not. Scans the workspace, so it costs about a
+    /// second in a monorepo — only worth calling when there is nothing running to attach to.
+    /// </summary>
+    public async Task<IReadOnlyList<AppHostCandidate>> ListCandidatesAsync(CancellationToken ct)
+    {
+        CommandResult result = await RunToCompletionAsync(
+            ["ls", "--format", "Json", "--nologo", "--non-interactive"],
+            ct);
+
+        return result.Success ? AspireJson.ParseCandidates(result.Output) : [];
+    }
+
+    /// <summary>
+    /// Starts an AppHost in the background and returns once the CLI reports it up — about five seconds
+    /// when nothing needs building, minutes when it does. Its resources come up afterwards, which the
+    /// follow streams already wait out.
+    /// </summary>
+    public Task<CommandResult> StartAppHostAsync(string path, CancellationToken ct) =>
+        RunToCompletionAsync(
+            ["start", "--apphost", path, "--format", "Json", "--nologo", "--non-interactive"],
+            ct);
+
+    /// <summary>
     /// Resource updates, reconnecting with backoff when the AppHost goes away. Runs until cancelled.
     /// </summary>
     public async IAsyncEnumerable<ResourceEvent> StreamResourcesAsync(
