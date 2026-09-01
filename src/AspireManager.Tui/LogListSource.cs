@@ -16,8 +16,10 @@ internal sealed class LogListSource(IApplication app) : IListDataSource
 {
     private static readonly Color _highlightForeground = Color.Parse("Black");
     private static readonly Color _highlightBackground = Color.Parse("Yellow");
+    private static readonly Color _error = Color.Parse("Red");
 
     private IReadOnlyList<string> _lines = [];
+    private IReadOnlyList<bool> _errors = [];
     private string _query = "";
 
     public event NotifyCollectionChangedEventHandler? CollectionChanged;
@@ -28,9 +30,11 @@ internal sealed class LogListSource(IApplication app) : IListDataSource
 
     public int MaxItemLength => _lines.Count == 0 ? 0 : _lines.Max(static l => l.Length);
 
-    public void Update(IReadOnlyList<string> lines, string query)
+    /// <param name="errors">Parallel to <paramref name="lines"/>: the CLI reports which came from stderr.</param>
+    public void Update(IReadOnlyList<string> lines, IReadOnlyList<bool> errors, string query)
     {
         _lines = lines;
+        _errors = errors;
         _query = query;
 
         if (!SuspendCollectionChangedEvent)
@@ -72,8 +76,15 @@ internal sealed class LogListSource(IApplication app) : IListDataSource
         string line = _lines[item];
         // Only paint the selection while this pane has focus. The log selection is a cursor for navigating,
         // not a statement about what is being shown, so highlighting it from the resource pane is noise.
-        TuiAttribute baseline = listView.GetAttributeForRole(
-            selected && listView.HasFocus ? VisualRole.Focus : VisualRole.Normal);
+        bool onSelection = selected && listView.HasFocus;
+        TuiAttribute baseline = listView.GetAttributeForRole(onSelection ? VisualRole.Focus : VisualRole.Normal);
+
+        // stderr in red, but not on the selected row: red on the selection background is the one pairing
+        // that stops being readable, and that row is already marked out by the highlight.
+        if (!onSelection && item < _errors.Count && _errors[item])
+        {
+            baseline = new TuiAttribute(_error, baseline.Background);
+        }
         TuiAttribute highlight = new(_highlightForeground, _highlightBackground);
         int used = 0;
 
