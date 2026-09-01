@@ -48,7 +48,21 @@ public abstract record ResourceRow;
 public sealed record TypeHeader(string ResourceType, int Count, bool Collapsed) : ResourceRow;
 
 /// <param name="Indented">False when ungrouped: there is no heading to sit under, so the indent is waste.</param>
-public sealed record ResourceItem(AspireResource Resource, bool Indented = true) : ResourceRow;
+/// <param name="ShowType">True when the type is not carried by a heading and the row has to say it itself.</param>
+public sealed record ResourceItem(AspireResource Resource, bool Indented = true, bool ShowType = false) : ResourceRow;
+
+/// <summary>How the resource pane arranges itself; <c>g</c> cycles through these in order.</summary>
+public enum GroupMode
+{
+    /// <summary>Foldable headings per type, resources indented under them.</summary>
+    Grouped,
+
+    /// <summary>One flat list, each row naming its own type after the resource name.</summary>
+    TypeSuffix,
+
+    /// <summary>One flat list of names alone.</summary>
+    Plain,
+}
 
 /// <summary>
 /// The presentation logic, kept out of the widget layer so it is testable without a terminal —
@@ -70,8 +84,10 @@ public static class ShellModel
     /// One row of the resource pane: state initial, health initial, name. Initials rather than words
     /// because the pane is narrow and the colour carries most of the meaning.
     /// </summary>
-    public static string Row(AspireResource resource) =>
-        $"{StateMark(resource)} {HealthMark(resource)} {resource.DisplayName}";
+    public static string Row(AspireResource resource, bool withType = false) =>
+        withType
+            ? $"{StateMark(resource)} {HealthMark(resource)} {resource.DisplayName} ({resource.ResourceType})"
+            : $"{StateMark(resource)} {HealthMark(resource)} {resource.DisplayName}";
 
     /// <summary>
     /// Resources grouped under a heading per <c>resourceType</c>, types alphabetical and resources
@@ -83,22 +99,25 @@ public static class ShellModel
         IReadOnlyList<AspireResource> resources,
         IReadOnlySet<string>? collapsedTypes = null,
         string? filter = null,
-        bool grouped = true)
+        GroupMode mode = GroupMode.Grouped)
     {
         string? needle = string.IsNullOrWhiteSpace(filter) ? null : filter.Trim();
 
-        // The filter matches resource names only, never type names: searching "sql" should find sqlPass,
-        // not every member of SqlServerDatabaseResource.
+        // The filter matches what the row actually shows. Grouped, a type name is a heading rather than part
+        // of a row, and matching it would pull in every member of SqlServerDatabaseResource on "sql".
+        bool matchType = mode is GroupMode.TypeSuffix;
         IEnumerable<AspireResource> visible = needle is null
             ? resources
-            : resources.Where(r => r.DisplayName.Contains(needle, StringComparison.OrdinalIgnoreCase));
+            : resources.Where(r =>
+                r.DisplayName.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
+                (matchType && r.ResourceType.Contains(needle, StringComparison.OrdinalIgnoreCase)));
 
         // Ungrouped: one flat alphabetical list, no headings and nothing to fold.
-        if (!grouped)
+        if (mode is not GroupMode.Grouped)
         {
             return [.. visible
                 .OrderBy(static r => r.DisplayName, StringComparer.Ordinal)
-                .Select(static r => new ResourceItem(r, Indented: false))];
+                .Select(r => new ResourceItem(r, Indented: false, ShowType: matchType))];
         }
 
         List<ResourceRow> rows = [];
@@ -127,7 +146,9 @@ public static class ShellModel
         TypeHeader header => $"{(header.Collapsed ? '\u25b8' : '\u25be')} {header.ResourceType} ({header.Count})",
 
         // Indented so the heading above it reads as a heading without needing colour.
-        ResourceItem item => item.Indented ? $"    {Row(item.Resource)}" : $" {Row(item.Resource)}",
+        ResourceItem item => item.Indented
+            ? $"    {Row(item.Resource)}"
+            : $" {Row(item.Resource, item.ShowType)}",
         _ => "",
     };
 

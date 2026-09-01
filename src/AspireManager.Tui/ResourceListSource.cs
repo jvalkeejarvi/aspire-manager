@@ -22,6 +22,7 @@ internal sealed class ResourceListSource(IApplication app) : IListDataSource
     private static readonly Color _failed = Color.Parse("Red");
     private static readonly Color _inactive = Color.Parse("DarkGray");
 
+
     private IReadOnlyList<ResourceRow> _rows = [];
 
     public event NotifyCollectionChangedEventHandler? CollectionChanged;
@@ -107,7 +108,15 @@ internal sealed class ResourceListSource(IApplication app) : IListDataSource
                 Write(" ");
                 Write(ShellModel.HealthMark(resource), StatusColour(ShellModel.HealthTone(resource)));
                 Write(" ");
+
                 Write(resource.DisplayName);
+
+                if (entry.ShowType)
+                {
+                    // Parenthesised rather than dimmed: a dim grey loses its contrast against the
+                    // selection background, and the brackets read as an aside at any colour.
+                    Write($" ({resource.ResourceType})");
+                }
                 break;
         }
 

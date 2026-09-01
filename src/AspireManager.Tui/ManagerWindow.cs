@@ -60,7 +60,7 @@ internal sealed class ManagerWindow : Window
     private IReadOnlyList<ResourceRow> _rowModel = [];
     private List<string> _rows = [];
     private readonly HashSet<string> _collapsed = new(StringComparer.Ordinal);
-    private bool _grouped = true;
+    private GroupMode _mode = GroupMode.Grouped;
     private string _logSignature = "";
     private string _status = "";
     private int _statusTicksLeft;
@@ -89,6 +89,7 @@ internal sealed class ManagerWindow : Window
     private IReadOnlyList<int> _logMatches = [];
     private int _logMatchPos;
     private List<string> _logLines = [];
+    private List<bool> _logErrors = [];
     private TextField? _confirmInput;
     private Label? _confirmHelp;
     private ConfirmCommand? _pendingConfirm;
@@ -120,7 +121,7 @@ internal sealed class ManagerWindow : Window
             Title = "AppHost",
             X = 0,
             Y = 0,
-            Width = Dim.Fill(),
+            Width = Dim.Percent(38),
             Height = 4,
         };
         _appHostStatus.X = Pos.Right(_appHostName) + 3;
@@ -159,7 +160,7 @@ internal sealed class ManagerWindow : Window
         {
             Title = "Logs",
             X = Pos.Right(_resourceFrame),
-            Y = Pos.Bottom(_appHostFrame),
+            Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(1),
         };
@@ -352,7 +353,7 @@ internal sealed class ManagerWindow : Window
     private void Rebuild()
     {
         IReadOnlyList<ResourceRow> model =
-            ShellModel.Rows(_resources.Resources(), _collapsed, _filter, _grouped);
+            ShellModel.Rows(_resources.Resources(), _collapsed, _filter, _mode);
         List<string> rows = [.. model.Select(ShellModel.RowText)];
 
         if (rows.SequenceEqual(_rows))
@@ -402,9 +403,10 @@ internal sealed class ManagerWindow : Window
             {
                 _logSignature = "";
                 _logLines = [];
+                _logErrors = [];
                 _logMatches = [];
                 _logFrame.Title = "[0] Logs";
-                _logSource.Update([], _logQuery);
+                _logSource.Update([], [], _logQuery);
                 _logList.SelectedItem = null;
             }
 
@@ -427,7 +429,8 @@ internal sealed class ManagerWindow : Window
         int previous = _logList.SelectedItem ?? 0;
 
         _logLines = [.. lines.Select(ShellModel.LogRow)];
-        _logSource.Update(_logLines, _logQuery);
+        _logErrors = [.. lines.Select(static l => l.IsError)];
+        _logSource.Update(_logLines, _logErrors, _logQuery);
         _logMatches = LogSearch.MatchingLines(_logLines, _logQuery);
 
         if (lines.Count > 0)
@@ -579,7 +582,7 @@ internal sealed class ManagerWindow : Window
 
         _logQuery = query;
         _logMatchPos = 0;
-        _logSource.Update(_logLines, _logQuery);
+        _logSource.Update(_logLines, _logErrors, _logQuery);
         _logMatches = LogSearch.MatchingLines(_logLines, _logQuery);
         JumpToMatch(0);
     }
@@ -594,7 +597,7 @@ internal sealed class ManagerWindow : Window
         _logQuery = "";
         _logMatchPos = 0;
         _logMatches = [];
-        _logSource.Update(_logLines, "");
+        _logSource.Update(_logLines, _logErrors, "");
         SetStatus("log search cleared");
         RenderLogTitle();
         _logList.SetNeedsDraw();
@@ -738,7 +741,7 @@ internal sealed class ManagerWindow : Window
         new("E", "open its whole log history in your editor", Panes.Resources | Panes.Logs,
             Binding.Char('E'), EditFullHistory, HasSelectedResource),
 
-        new("g", "group by type on/off", Panes.Resources, Binding.Char('g'), ToggleGrouping),
+        new("g", "cycle grouping: groups, type after name, names only", Panes.Resources, Binding.Char('g'), ToggleGrouping),
         new("-", "fold every group", Panes.Resources, Binding.Char('-'), () => FoldAll(collapse: true)),
         new("=", "unfold every group", Panes.Resources, Binding.Char('='), () => FoldAll(collapse: false)),
         new("/", "filter by resource name", Panes.Resources, Binding.Char('/'), OpenSearch),
@@ -834,10 +837,21 @@ internal sealed class ManagerWindow : Window
 
     private void ToggleGrouping()
     {
-        _grouped = !_grouped;
+        _mode = _mode switch
+        {
+            GroupMode.Grouped => GroupMode.TypeSuffix,
+            GroupMode.TypeSuffix => GroupMode.Plain,
+            _ => GroupMode.Grouped,
+        };
+
         Rebuild();
         RenderLogs(force: true);
-        SetStatus(_grouped ? "grouped by type" : "ungrouped");
+        SetStatus(_mode switch
+        {
+            GroupMode.Grouped => "grouped by type",
+            GroupMode.TypeSuffix => "flat, type after name",
+            _ => "flat, names only",
+        });
     }
 
     private void NextPane()

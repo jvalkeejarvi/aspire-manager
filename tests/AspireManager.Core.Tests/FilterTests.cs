@@ -111,29 +111,29 @@ public class GroupingToggleTests
 
     [Fact]
     public void UngroupedHasNoHeadings() =>
-        ShellModel.Rows(Sample(), grouped: false).Should().AllBeOfType<ResourceItem>();
+        ShellModel.Rows(Sample(), mode: GroupMode.Plain).Should().AllBeOfType<ResourceItem>();
 
     /// <summary>Flat means one alphabetical run, not each type's members kept together.</summary>
     [Fact]
     public void UngroupedIsOneAlphabeticalList() =>
-        ShellModel.Rows(Sample(), grouped: false)
+        ShellModel.Rows(Sample(), mode: GroupMode.Plain)
             .OfType<ResourceItem>().Select(static i => i.Resource.DisplayName)
             .Should().ContainInOrder("azurite", "recipes-api", "ticker", "webui");
 
     [Fact]
     public void UngroupedKeepsEveryResource() =>
-        ShellModel.Rows(Sample(), grouped: false).Should().HaveCount(4);
+        ShellModel.Rows(Sample(), mode: GroupMode.Plain).Should().HaveCount(4);
 
     [Fact]
     public void UngroupedStillHonoursTheFilter() =>
-        ShellModel.Rows(Sample(), null, "api", grouped: false)
+        ShellModel.Rows(Sample(), null, "api", mode: GroupMode.Plain)
             .OfType<ResourceItem>().Select(static i => i.Resource.DisplayName)
             .Should().ContainSingle().Which.Should().Be("recipes-api");
 
     /// <summary>There is nothing to fold without headings, so folds must not hide anything.</summary>
     [Fact]
     public void FoldsAreIgnoredWhenUngrouped() =>
-        ShellModel.Rows(Sample(), new HashSet<string> { "Project", "Executable" }, null, grouped: false)
+        ShellModel.Rows(Sample(), new HashSet<string> { "Project", "Executable" }, null, mode: GroupMode.Plain)
             .Should().HaveCount(4);
 
     [Fact]
@@ -142,7 +142,43 @@ public class GroupingToggleTests
 
     [Fact]
     public void UngroupedEmptyStaysEmpty() =>
-        ShellModel.Rows([], grouped: false).Should().BeEmpty();
+        ShellModel.Rows([], mode: GroupMode.Plain).Should().BeEmpty();
+
+    /// <summary>Flat without headings, so the type has to travel with the row that needs it.</summary>
+    [Fact]
+    public void TypeSuffixIsFlatAndCarriesTheType()
+    {
+        IReadOnlyList<ResourceRow> rows = ShellModel.Rows(Sample(), mode: GroupMode.TypeSuffix);
+
+        rows.Should().AllBeOfType<ResourceItem>();
+        rows.OfType<ResourceItem>().Should().OnlyContain(static i => i.ShowType);
+    }
+
+    [Fact]
+    public void PlainRowsDoNotCarryTheType() =>
+        ShellModel.Rows(Sample(), mode: GroupMode.Plain)
+            .OfType<ResourceItem>().Should().OnlyContain(static i => !i.ShowType);
+
+    /// <summary>The type is on screen in this mode, so a search for it has to find it.</summary>
+    [Fact]
+    public void TypeSuffixFilterAlsoMatchesTheType() =>
+        ShellModel.Rows(Sample(), null, "Project", mode: GroupMode.TypeSuffix)
+            .OfType<ResourceItem>().Select(static i => i.Resource.DisplayName)
+            .Should().ContainInOrder("recipes-api", "webui");
+
+    /// <summary>Types are headings there, so "sql" would drag in every SqlServerDatabaseResource member.</summary>
+    [Fact]
+    public void GroupedFilterIgnoresTheType() =>
+        ShellModel.Rows(Sample(), null, "Project").Should().BeEmpty();
+
+    [Fact]
+    public void PlainFilterIgnoresTheType() =>
+        ShellModel.Rows(Sample(), null, "Project", mode: GroupMode.Plain).Should().BeEmpty();
+
+    /// <summary>A grouped row's heading already says the type; repeating it in every member is noise.</summary>
+    [Fact]
+    public void GroupedRowsDoNotCarryTheType() =>
+        ShellModel.Rows(Sample()).OfType<ResourceItem>().Should().OnlyContain(static i => !i.ShowType);
 }
 
 public class IndentTests
@@ -158,8 +194,13 @@ public class IndentTests
     /// <summary>No heading to sit under means the indent is only lost width.</summary>
     [Fact]
     public void UngroupedRowsAreNotIndented() =>
-        ShellModel.RowText(ShellModel.Rows([Resource("webui", "Project")], grouped: false)[0])
+        ShellModel.RowText(ShellModel.Rows([Resource("webui", "Project")], mode: GroupMode.Plain)[0])
             .Should().Be(" R H webui");
+
+    [Fact]
+    public void TypeSuffixRowsNameTheirTypeAfterTheResource() =>
+        ShellModel.RowText(ShellModel.Rows([Resource("webui", "Project")], mode: GroupMode.TypeSuffix)[0])
+            .Should().Be(" R H webui (Project)");
 }
 
 public class NextIndexTests

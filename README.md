@@ -4,15 +4,15 @@ A [lazygit](https://github.com/jesseduffield/lazygit)-style terminal UI for .NET
 AppHost's resources, tail their logs, and restart or rebuild them without leaving the terminal.
 
 ```
-╭┤[1] AppHost├───────────────────────────────────────────────────────────────╮
-│ Shop.AppHost   [connected]                                                 │
-│ ~/src/shop/src/host/Shop.AppHost/Shop.AppHost.csproj                       │
-╰────────────────────────────────────────────────────────────────────────────╯
-╭┤[2] Resources├─────────────────────╮╭┤[0] Logs: orders-api├─────────────────╮
-│▾ AzureStorageResource (1)          ││ 17:12:04 info Now listening on :7246  │
-│    R H storage                     ││ 17:12:04 info Application started     │
-│▾ Container (2)                     ││ 17:12:09 warn Slow query (412ms)      │
-│    R H redis                       ││ 17:12:11 info 200 GET /api/orders     │
+╭┤[1] AppHost├───────────────────────╮╭┤[0] Logs: orders-api├─────────────────╮
+│ Shop.AppHost   [connected]         ││ 17:12:04 info Now listening on :7246  │
+│ …/src/host/Shop.AppHost.csproj     ││ 17:12:04 info Application started     │
+╰────────────────────────────────────╯│ 17:12:09 warn Slow query (412ms)      │
+╭┤[2] Resources├─────────────────────╮│ 17:12:11 info 200 GET /api/orders     │
+│▾ AzureStorageResource (1)          ││                                       │
+│    R H storage                     ││                                       │
+│▾ Container (2)                     ││                                       │
+│    R H redis                       ││                                       │
 │    R H sql                         ││                                       │
 │▾ Project (3)                       ││                                       │
 │    R H orders-api                  ││                                       │
@@ -24,7 +24,9 @@ AppHost's resources, tail their logs, and restart or rebuild them without leavin
  1/2/0 panes   j/k move   / search   enter logs   r/s/b   c cmds   ? help   q quit
 ```
 
-Each resource row is `state health name`. The state initial is coloured — green running, grey stopped,
+Each resource row is `state health name`. `g` cycles how the pane arranges itself: grouped under
+foldable type headings, one flat list with each row's type after its name, or names alone. The state
+initial is coloured — green running, grey stopped,
 red failed — and the health initial beside it (`H`, `U`, `D`, or `-` for no health check) is coloured
 separately, because a running resource can still be unhealthy.
 
@@ -99,9 +101,9 @@ cannot fall out of date. `/` narrows it, as it does in every list here.
 | `c` | every command the AppHost offers for this resource |
 | `o` `O` | open its first URL, or pick one |
 | `e` `E` | open its logs in your editor — buffered, or the full history |
-| `g` | group by type on/off |
+| `g` | cycle grouping: groups, type after name, names only |
 | `-` `=` | fold or unfold every group |
-| `/`, `esc` | filter by name, clear the filter |
+| `/`, `esc` | filter by name — and by type where `g` shows it — then clear the filter |
 
 ### Logs
 
@@ -168,6 +170,8 @@ Everything comes from the `aspire` CLI:
 | `aspire describe --follow` | resource states, health and available commands |
 | `aspire logs --follow` | every resource's logs, one process for all of them |
 | `aspire resource <name> <cmd>` | runs a command |
+
+Lines the resource wrote to stderr are marked as such by the CLI and shown in red.
 
 Two long-lived streams feed thread-safe stores; the UI polls them. Both reconnect with a doubling backoff
 when the AppHost goes away, and their child processes are killed as a tree on exit, so nothing is left
