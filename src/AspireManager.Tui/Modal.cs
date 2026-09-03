@@ -26,6 +26,12 @@ internal static class Modal
     {
         string? chosen = null;
 
+        // No window is laid out yet, and Terminal.Gui has no size of its own until its run loop starts:
+        // both `app.Screen` and `Driver.Cols` read zero here, which sizes the dialog to its 38-column
+        // floor. The terminal itself is the only source that answers before then.
+        int overlayWidth = Math.Max(38, TerminalWidth() - 2);
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
         // Borderless and full screen: the ListOverlay frame inside carries the border, so a second one
         // around it would just be a box in a box.
         Window window = new()
@@ -40,7 +46,7 @@ internal static class Modal
         ListOverlay? overlay = null;
         overlay = ListOverlay.Build(
             "Select AppHost",
-            AppHostOptions.Rows(options),
+            AppHostOptions.Rows(options, null, home, ListOverlay.RowWidth(overlayWidth)),
             " j/k move   enter attach or start   esc/^g quit",
             0,
             index =>
@@ -65,7 +71,8 @@ internal static class Modal
                 chosen = option.Path;
                 app.RequestStop(window);
             },
-            () => app.RequestStop(window));
+            () => app.RequestStop(window),
+            maxWidth: overlayWidth);
 
         window.Add(overlay.Frame);
 
@@ -85,5 +92,18 @@ internal static class Modal
         }
 
         return chosen;
+    }
+
+    /// <summary>Falls back to the classic 80 columns when stdout is not a terminal, as it is under a pipe.</summary>
+    private static int TerminalWidth()
+    {
+        try
+        {
+            return Console.WindowWidth > 0 ? Console.WindowWidth : 80;
+        }
+        catch (Exception e) when (e is IOException or PlatformNotSupportedException)
+        {
+            return 80;
+        }
     }
 }

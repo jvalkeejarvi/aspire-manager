@@ -276,9 +276,9 @@ internal sealed class ManagerWindow : Window
     {
         _appHostName.Text = AppHostSelection.Name(_session.Path);
         _appHostStatus.SetNeedsDraw();
-        _appHostPath.Text = AppHostSelection.ShortPath(
+        _appHostPath.Text = AppHostSelection.PathKeepingTail(
             _session.Path,
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            _home,
             Math.Max(10, _appHostFrame.Viewport.Width - 2));
     }
 
@@ -671,6 +671,11 @@ internal sealed class ManagerWindow : Window
         SetStatus(UrlOpener.Open(url.Url));
     }
 
+    private static readonly string _home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+    /// <summary>The room a dialog has in this window, which the AppHost picker also needs to fit its rows.</summary>
+    private int OverlayWidth => Math.Max(38, Viewport.Width - 2);
+
     /// <summary>Shows the one list dialog; the accept callback runs after it has closed.</summary>
     private void ShowList(string title, IReadOnlyList<string> rows, string help, int selected, Action<int> accept)
     {
@@ -679,7 +684,7 @@ internal sealed class ManagerWindow : Window
         {
             CloseOverlay();
             accept(index);
-        }, CloseOverlay, Math.Max(8, Viewport.Height - 2));
+        }, CloseOverlay, Math.Max(8, Viewport.Height - 2), OverlayWidth);
 
         _overlayFrame = _list.Frame;
         Add(_overlayFrame);
@@ -973,7 +978,8 @@ internal sealed class ManagerWindow : Window
         // Open on the host we are attached to, so Enter is a no-op rather than a surprise switch.
         int current = options.ToList().FindIndex(o => AppHostSelection.SamePath(o.Path, _session.Path));
 
-        ShowList("Switch AppHost", AppHostOptions.Rows(options, _session.Path),
+        ShowList("Switch AppHost",
+            AppHostOptions.Rows(options, _session.Path, _home, ListOverlay.RowWidth(OverlayWidth)),
             " j/k move   enter attach or start   esc/^g cancel", Math.Max(current, 0),
             index => AttachTo(options[index]));
     }

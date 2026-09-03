@@ -13,22 +13,22 @@ public class AppHostPanelTests
 
     [Fact]
     public void HomeBecomesTilde() =>
-        AppHostSelection.ShortPath(_appHostPath, "/Users/dev", 200)
+        AppHostSelection.PathKeepingTail(_appHostPath, "/Users/dev", 200)
             .Should().Be("~/src/shop/src/host/Shop.AppHost/Shop.AppHost.csproj");
 
     [Fact]
     public void PathOutsideHomeIsLeftAlone() =>
-        AppHostSelection.ShortPath("/opt/app/A.csproj", "/Users/dev", 200).Should().Be("/opt/app/A.csproj");
+        AppHostSelection.PathKeepingTail("/opt/app/A.csproj", "/Users/dev", 200).Should().Be("/opt/app/A.csproj");
 
     [Fact]
     public void NoHomeIsHandled() =>
-        AppHostSelection.ShortPath(_appHostPath, null, 200).Should().Be(_appHostPath);
+        AppHostSelection.PathKeepingTail(_appHostPath, null, 200).Should().Be(_appHostPath);
 
     /// <summary>The tail identifies the AppHost; the leading directories do not.</summary>
     [Fact]
     public void OverlongPathKeepsItsTail()
     {
-        string shortened = AppHostSelection.ShortPath(_appHostPath, "/Users/dev", 30);
+        string shortened = AppHostSelection.PathKeepingTail(_appHostPath, "/Users/dev", 30);
 
         shortened.Should().HaveLength(30);
         shortened.Should().StartWith("…").And.EndWith("Shop.AppHost.csproj");
@@ -38,11 +38,35 @@ public class AppHostPanelTests
     public void ShorteningNeverExceedsTheWidth() =>
         Enumerable.Range(1, 60)
             .Should().AllSatisfy(w =>
-                AppHostSelection.ShortPath(_appHostPath, "/Users/dev", w).Length.Should().BeLessThanOrEqualTo(w));
+                AppHostSelection.PathKeepingTail(_appHostPath, "/Users/dev", w).Length.Should().BeLessThanOrEqualTo(w));
 
     [Fact]
     public void ZeroWidthIsNotAnError() =>
-        AppHostSelection.ShortPath(_appHostPath, "/Users/dev", 0).Should().NotBeNull();
+        AppHostSelection.PathKeepingTail(_appHostPath, "/Users/dev", 0).Should().NotBeNull();
+
+    /// <summary>The picker prints the name beside the path, so there the leading directories are the news.</summary>
+    [Fact]
+    public void OverlongPickerPathKeepsItsHead()
+    {
+        string shortened = AppHostSelection.PathKeepingHead(_appHostPath, "/Users/dev", 30);
+
+        shortened.Should().HaveLength(30);
+        shortened.Should().StartWith("~/src/shop").And.EndWith("\u2026");
+    }
+
+    [Fact]
+    public void KeepingTheHeadNeverExceedsTheWidth() =>
+        Enumerable.Range(1, 60)
+            .Should().AllSatisfy(w =>
+                AppHostSelection.PathKeepingHead(_appHostPath, "/Users/dev", w).Length.Should().BeLessThanOrEqualTo(w));
+
+    [Fact]
+    public void DirectoryDropsTheProjectFile() =>
+        AppHostSelection.Directory(_appHostPath).Should().Be("/Users/dev/src/shop/src/host/Shop.AppHost");
+
+    [Fact]
+    public void DirectoryOfABareFileNameIsThePathItself() =>
+        AppHostSelection.Directory("A.csproj").Should().Be("A.csproj");
 }
 
 public class StoreClearTests

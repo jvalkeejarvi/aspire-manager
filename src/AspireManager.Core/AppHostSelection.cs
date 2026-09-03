@@ -77,28 +77,51 @@ public static class AppHostSelection
     public static string Name(string appHostPath) =>
         Path.GetFileNameWithoutExtension(appHostPath) is { Length: > 0 } name ? name : appHostPath;
 
-    /// <summary>
-    /// The path shortened for a narrow panel: home becomes <c>~</c> and the middle is elided, keeping the
-    /// repository root and the project, which is what tells two AppHosts apart.
-    /// </summary>
-    public static string ShortPath(string appHostPath, string? home, int width)
-    {
-        string path = appHostPath;
+    /// <summary>The directory the project sits in, which is what separates two checkouts of one repository.</summary>
+    public static string Directory(string appHostPath) =>
+        Path.GetDirectoryName(appHostPath) is { Length: > 0 } dir ? dir : appHostPath;
 
-        if (!string.IsNullOrEmpty(home) && path.StartsWith(home, StringComparison.Ordinal))
-        {
-            path = string.Concat("~", path.AsSpan(home.Length));
-        }
+    /// <summary>
+    /// The path shortened for a narrow panel: home becomes <c>~</c> and the front is elided, keeping the
+    /// project and the directory holding it, which is what identifies the AppHost when nothing names it.
+    /// </summary>
+    public static string PathKeepingTail(string appHostPath, string? home, int width)
+    {
+        string path = Tilde(appHostPath, home);
 
         if (width <= 0 || path.Length <= width)
         {
             return path;
         }
 
-        // Keep the tail: the project file and its directory identify the AppHost, the leading path does not.
-        const string ellipsis = "…";
+        const string ellipsis = "\u2026";
         return width <= ellipsis.Length
             ? path[^width..]
             : ellipsis + path[^(width - ellipsis.Length)..];
     }
+
+    /// <summary>
+    /// The mirror of <see cref="PathKeepingTail"/>, for a row that already names the project beside it:
+    /// the tail then only repeats what is on screen, while the leading directories are the whole of what
+    /// tells one checkout from another. Which end survives is the only difference between the two.
+    /// </summary>
+    public static string PathKeepingHead(string appHostPath, string? home, int width)
+    {
+        string path = Tilde(appHostPath, home);
+
+        if (width <= 0 || path.Length <= width)
+        {
+            return path;
+        }
+
+        const string ellipsis = "\u2026";
+        return width <= ellipsis.Length
+            ? path[..width]
+            : path[..(width - ellipsis.Length)] + ellipsis;
+    }
+
+    private static string Tilde(string path, string? home) =>
+        !string.IsNullOrEmpty(home) && path.StartsWith(home, StringComparison.Ordinal)
+            ? string.Concat("~", path.AsSpan(home.Length))
+            : path;
 }

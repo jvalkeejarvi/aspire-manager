@@ -79,16 +79,48 @@ public class AppHostOptionsTests
         AppHostOptions.Age(TimeSpan.FromSeconds(seconds)).Should().Be(expected);
 
     [Fact]
-    public void RowsAlignTheDetailsAndMarkTheCurrentOne()
+    public void RowsAlignTheColumnsAndMarkTheCurrentOne()
     {
         IReadOnlyList<AppHostOption> options = Build(
             running: [Running("/w/Short.AppHost.csproj", 7)],
             recents: [Recent("/x/MuchLongerName.AppHost.csproj", TimeSpan.FromHours(3))]);
 
         AppHostOptions.Rows(options, "/w/Short.AppHost.csproj").Should().Equal(
-            "* Short.AppHost            pid 7",
-            "  MuchLongerName.AppHost   3h ago");
+            "* Short.AppHost            /w   pid 7",
+            "  MuchLongerName.AppHost   /x   3h ago");
     }
+
+    /// <summary>The collision the directory column exists for: one project, three checkouts.</summary>
+    [Fact]
+    public void RowsSeparateTheSameProjectInDifferentCheckouts()
+    {
+        IReadOnlyList<AppHostOption> options = Build(
+            recents:
+            [
+                Recent("/home/d/git/repo/src/host/G6.AppHost/G6.AppHost.csproj", TimeSpan.FromHours(1)),
+                Recent("/home/d/git/worktrees/wip/src/host/G6.AppHost/G6.AppHost.csproj", TimeSpan.FromHours(2)),
+            ]);
+
+        AppHostOptions.Rows(options, null, "/home/d").Should().Equal(
+            "  G6.AppHost   ~/git/repo/src/host/G6.AppHost            1h ago",
+            "  G6.AppHost   ~/git/worktrees/wip/src/host/G6.AppHost   2h ago");
+    }
+
+    [Fact]
+    public void ANarrowRowElidesTheDirectoryAndNothingElse()
+    {
+        IReadOnlyList<AppHostOption> options = Build(
+            recents: [Recent("/home/d/git/worktrees/wip/src/host/G6.AppHost/G6.AppHost.csproj", TimeSpan.FromHours(2))]);
+
+        IReadOnlyList<string> rows = AppHostOptions.Rows(options, null, "/home/d", 44);
+
+        rows.Should().ContainSingle().Which.Should().Be("  G6.AppHost   ~/git/worktrees/wip\u2026   2h ago");
+        rows[0].Length.Should().BeLessThanOrEqualTo(44);
+    }
+
+    [Fact]
+    public void NoOptionsIsNoRows() =>
+        AppHostOptions.Rows([]).Should().BeEmpty();
 }
 
 public class RecentsTests

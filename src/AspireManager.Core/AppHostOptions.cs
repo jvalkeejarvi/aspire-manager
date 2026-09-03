@@ -69,18 +69,43 @@ public static class AppHostOptions
     };
 
     /// <summary>
-    /// The row as the picker shows it: name, then what is known about it, padded so the details line up.
+    /// The row as the picker shows it: name, then the directory holding the project, then what is known
+    /// about it, each padded so the columns line up. The directory is there because two checkouts of one
+    /// repository produce rows with the same name, and the name is then not enough to choose by.
+    /// <paramref name="width"/> is the room a row has; zero means unbounded.
     /// </summary>
-    public static IReadOnlyList<string> Rows(IReadOnlyList<AppHostOption> options, string? currentPath = null)
+    public static IReadOnlyList<string> Rows(
+        IReadOnlyList<AppHostOption> options,
+        string? currentPath = null,
+        string? home = null,
+        int width = 0)
     {
-        int width = options.Count == 0 ? 0 : options.Max(static o => o.Name.Length);
+        if (options.Count == 0)
+        {
+            return [];
+        }
+
+        int names = options.Max(static o => o.Name.Length);
+        int details = options.Max(static o => o.Detail.Length);
+
+        // What the fixed columns leave the path. The floor keeps a terminal too narrow for all of this
+        // from asking for a negative width, which reads as "unbounded" and would print the whole path.
+        int budget = width <= 0 ? int.MaxValue : Math.Max(12, width - names - details - 8);
+
+        string[] paths =
+        [
+            .. options.Select(o =>
+                AppHostSelection.PathKeepingHead(AppHostSelection.Directory(o.Path), home, budget)),
+        ];
+
+        int dirs = paths.Max(static p => p.Length);
 
         return
         [
-            .. options.Select(o =>
+            .. options.Select((o, i) =>
                 (AppHostSelection.SamePath(o.Path, currentPath) ? "* " : "  ")
-                + o.Name.PadRight(width)
-                + $"   {o.Detail}"),
+                + o.Name.PadRight(names)
+                + $"   {paths[i].PadRight(dirs)}   {o.Detail}"),
         ];
     }
 }

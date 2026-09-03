@@ -52,6 +52,12 @@ internal sealed class ListOverlay
 
     public ListView List { get; }
 
+    /// <summary>
+    /// How much of a row survives in a dialog this wide, for callers that have to fit their text before
+    /// they can hand it over: the border, the inset and the padding that <see cref="Build"/> adds back.
+    /// </summary>
+    public static int RowWidth(int maxWidth) => Math.Max(20, maxWidth - 8);
+
     public static ListOverlay Build(
         string title,
         IReadOnlyList<string> rows,
@@ -59,7 +65,8 @@ internal sealed class ListOverlay
         int selected,
         Action<int> accept,
         Action cancel,
-        int maxHeight = 20)
+        int maxHeight = 20,
+        int maxWidth = 104)
     {
         ListView list = new() { X = 2, Y = 1, Width = Dim.Fill(2), Height = Dim.Fill(2) };
         list.SetSource(new ObservableCollection<string>(rows));
@@ -76,7 +83,7 @@ internal sealed class ListOverlay
 
             // Sized to content rather than a percentage of the screen, plus room for the border and the
             // blank line above the list and above the help.
-            Width = Math.Clamp(widest + 8, 38, 104),
+            Width = Math.Clamp(widest + 8, 38, Math.Max(38, maxWidth)),
             Height = Math.Min(rows.Count + 5, Math.Max(8, maxHeight)),
         };
         frame.Add(list, hint);
