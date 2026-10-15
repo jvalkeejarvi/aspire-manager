@@ -39,6 +39,11 @@ separately, because a running resource can still be unhealthy.
 There is nothing to configure to get started, and nothing is installed into your AppHost: the tool drives
 the `aspire` CLI, so it sees exactly what `aspire describe` and `aspire logs` see.
 
+The tool runs those CLI calls with `ASPIRE_CLI_TELEMETRY_OPTOUT=true`. With telemetry on, each one-shot
+command waits 1–2 seconds at exit, which made startup and every command keypress visibly slow. This only
+affects the CLI's own usage reporting to Microsoft, and only for calls the tool makes; your app's logs,
+traces and metrics, and the `aspire` commands you run yourself, are unaffected.
+
 ## Build and run
 
 ```bash

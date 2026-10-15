@@ -219,6 +219,10 @@ public sealed class AspireCli(string appHostPath, string executable = "aspire")
             UseShellExecute = false,
         };
 
+        // With telemetry on, every one-shot command blocks 1-2s at exit collecting telemetry tags, which
+        // made `ps` at startup and every keypress-driven command visibly slow. Opting out takes it to ~0.1s.
+        info.Environment["ASPIRE_CLI_TELEMETRY_OPTOUT"] = "true";
+
         // ArgumentList quotes each element itself; a single joined string would break on spaces in paths.
         foreach (string arg in args)
         {

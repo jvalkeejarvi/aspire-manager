@@ -128,6 +128,17 @@ public class AspireCliTests : IDisposable
         result.Output.Should().Contain("stopped successfully");
     }
 
+    [Fact(Skip = "the stand-in CLI is a shell script", SkipUnless = nameof(RunsShellScripts))]
+    public async Task CliRunsWithTelemetryOptedOut()
+    {
+        string exe = FakeCli("echo \"optout=$ASPIRE_CLI_TELEMETRY_OPTOUT\"");
+
+        CommandResult result = await new AspireCli("/x/A.csproj", exe)
+            .RunCommandAsync("ticker", "stop", TestContext.Current.CancellationToken);
+
+        result.Output.Should().Contain("optout=true");
+    }
+
     /// <summary>On failure the caller needs stderr, not the empty stdout.</summary>
     [Fact(Skip = "the stand-in CLI is a shell script", SkipUnless = nameof(RunsShellScripts))]
     public async Task CommandFailsOnNonZeroExitAndReportsStderr()
