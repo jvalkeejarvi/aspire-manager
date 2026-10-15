@@ -159,6 +159,32 @@ public class RecentsTests
         Recents.Record(entries, "/new.csproj", _now).Should().HaveCount(Recents.Capacity);
     }
 
+    [Fact]
+    public void ForgettingRemovesJustThatOne()
+    {
+        IReadOnlyList<RecentAppHost> after = Recents.Forget(
+            [new RecentAppHost("/a.csproj", _now), new RecentAppHost("/b.csproj", _now.AddDays(-1))],
+            "/a.csproj");
+
+        after.Select(static r => r.Path).Should().Equal("/b.csproj");
+    }
+
+    /// <summary>The picker's rows carry the path `aspire ps` reported, which need not be spelled as stored.</summary>
+    [Fact]
+    public void ForgettingNormalisesThePathFirst()
+    {
+        Recents.Forget([new RecentAppHost("/w/x/../a.csproj", _now)], "/w/a.csproj").Should().BeEmpty();
+    }
+
+    /// <summary>Running and workspace rows are offered without ever having been remembered.</summary>
+    [Fact]
+    public void ForgettingSomethingUnknownChangesNothing()
+    {
+        IReadOnlyList<RecentAppHost> existing = [new RecentAppHost("/a.csproj", _now)];
+
+        Recents.Forget(existing, "/b.csproj").Should().HaveCount(1);
+    }
+
     /// <summary>A project that has been deleted or renamed is not worth offering to start.</summary>
     [Fact]
     public void LoadDropsPathsThatNoLongerExist()

@@ -16,11 +16,14 @@ namespace AspireManager.Tui;
 /// </summary>
 internal sealed class ListOverlay
 {
-    private readonly IReadOnlyList<string> _all;
     private readonly Label _hint;
     private readonly string _help;
     private readonly Action<int> _accept;
     private readonly Action _cancel;
+    private readonly Action<int>? _remove;
+    private readonly int _maxHeight;
+
+    private List<string> _all;
 
     private List<int> _visible;
     private string _filter = "";
@@ -33,15 +36,19 @@ internal sealed class ListOverlay
         IReadOnlyList<string> all,
         string help,
         Action<int> accept,
-        Action cancel)
+        Action cancel,
+        Action<int>? remove,
+        int maxHeight)
     {
         Frame = frame;
         List = list;
         _hint = hint;
-        _all = all;
+        _all = [.. all];
         _help = help;
         _accept = accept;
         _cancel = cancel;
+        _remove = remove;
+        _maxHeight = maxHeight;
         _visible = [.. Enumerable.Range(0, all.Count)];
     }
 
@@ -66,7 +73,8 @@ internal sealed class ListOverlay
         Action<int> accept,
         Action cancel,
         int maxHeight = 20,
-        int maxWidth = 104)
+        int maxWidth = 104,
+        Action<int>? remove = null)
     {
         ListView list = new() { X = 2, Y = 1, Width = Dim.Fill(2), Height = Dim.Fill(2) };
         list.SetSource(new ObservableCollection<string>(rows));
@@ -96,7 +104,7 @@ internal sealed class ListOverlay
         // otherwise invert to a solid white title bar.
         frame.SetScheme(new Scheme { Normal = normal, Focus = normal });
 
-        ListOverlay overlay = new(frame, list, hint, rows, help, accept, cancel);
+        ListOverlay overlay = new(frame, list, hint, rows, help, accept, cancel, remove, maxHeight);
 
         // SelectedItem does not stick before layout, so it is set once the views are assembled, and the
         // viewport is scrolled to it explicitly — otherwise a list taller than the dialog opens part-way
@@ -122,6 +130,28 @@ internal sealed class ListOverlay
         if (wanted > 0)
         {
             List.SelectedItem = wanted;
+            List.EnsureSelectedItemVisible();
+        }
+    }
+
+    /// <summary>
+    /// Replaces the rows without closing, for a dialog that edits the list it is showing. The width is
+    /// left alone: it was sized for the longest row and rows only ever leave, so re-sizing would make the
+    /// frame jump under the cursor for nothing.
+    /// </summary>
+    public void SetRows(IReadOnlyList<string> rows)
+    {
+        int wanted = List.SelectedItem ?? 0;
+
+        _all = [.. rows];
+        Frame.Height = Math.Min(_all.Count + 5, Math.Max(8, _maxHeight));
+        Apply();
+
+        // Apply() reopens at the top, which is right after a filter keystroke but not after a deletion:
+        // the row under the cursor is gone and the one that took its place is what to look at next.
+        if (_visible.Count > 0)
+        {
+            List.SelectedItem = Math.Clamp(wanted, 0, _visible.Count - 1);
             List.EnsureSelectedItemVisible();
         }
     }
@@ -168,6 +198,20 @@ internal sealed class ListOverlay
             return true;
         }
 
+        // Handled even when there is nothing selected, so a bare `d` never reaches the ListView's own
+        // type-to-search. Absent a handler it is not this dialog's key at all.
+        if (_remove is not null && (char)key.AsRune.Value == 'd')
+        {
+            key.Handled = true;
+
+            if (Selected() is { } index)
+            {
+                _remove(index);
+            }
+
+            return true;
+        }
+
         return ListKeys.VimMove(List, key) || ListKeys.PageMove(List, key);
     }
 
@@ -195,16 +239,23 @@ internal sealed class ListOverlay
 
     private void Accept()
     {
+        if (Selected() is { } index)
+        {
+            _accept(index);
+        }
+    }
+
+    /// <summary>The unfiltered index under the cursor, or null when the list is empty.</summary>
+    private int? Selected()
+    {
         if (_visible.Count == 0)
         {
-            return;
+            return null;
         }
 
-        int index = List.SelectedItem is { } selected and >= 0 && selected < _visible.Count
+        return _visible[List.SelectedItem is { } selected and >= 0 && selected < _visible.Count
             ? selected
-            : 0;
-
-        _accept(_visible[index]);
+            : 0];
     }
 
     private void Apply()

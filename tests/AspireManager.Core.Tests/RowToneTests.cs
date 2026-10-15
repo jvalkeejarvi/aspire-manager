@@ -123,6 +123,14 @@ public class ConnectionTests
         ShellModel.ConnectionText(ConnectionState.Connecting, TimeSpan.Zero).Should().Be("connecting");
         ShellModel.ConnectionTone(ConnectionState.Connecting).Should().Be(RowTone.Warning);
     }
+
+    /// <summary>Stopping it was the point, so it is not a failure and there is no countdown to show.</summary>
+    [Fact]
+    public void StoppedIsNeitherAFailureNorACountdown()
+    {
+        ShellModel.ConnectionText(ConnectionState.Stopped, TimeSpan.FromSeconds(4)).Should().Be("stopped");
+        ShellModel.ConnectionTone(ConnectionState.Stopped).Should().Be(RowTone.Inactive);
+    }
 }
 
 /// <summary>

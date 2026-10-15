@@ -43,21 +43,30 @@ IReadOnlyList<AppHost> hosts = requested is null
 AppHostChoice choice = AppHostSelection.Select(hosts, requested);
 IReadOnlyList<AppHostOption> offer = [];
 
+// Kept rather than folded into `offer`, because `d` in the picker rebuilds the list from them.
+IReadOnlyList<AppHost> offered = hosts;
+IReadOnlyList<RecentAppHost> remembered = [];
+IReadOnlyList<AppHostCandidate> found = [];
+
 // The workspace scan costs about a second in a monorepo, so it happens only here — the path where the
 // alternative is telling the user there is nothing to attach to and exiting.
 if (choice is NoAppHost)
 {
-    offer = AppHostOptions.Build(
-        hosts,
-        Recents.Load(ConfigFile.RecentsPath),
-        await discovery.ListCandidatesAsync(cts.Token),
-        DateTimeOffset.Now);
+    remembered = Recents.Load(ConfigFile.RecentsPath);
+    found = await discovery.ListCandidatesAsync(cts.Token);
+    offer = AppHostOptions.Build(offered, remembered, found, DateTimeOffset.Now);
 
     if (offer.Count == 0)
     {
         Console.Error.WriteLine("no AppHost running, used recently, or found here; start one with `aspire run`");
         return 1;
     }
+}
+else if (choice is ChooseAppHost pick)
+{
+    // Every row here is a running AppHost, so nothing in this list can be forgotten.
+    offered = pick.Candidates;
+    offer = AppHostOptions.Build(offered, remembered, found, DateTimeOffset.Now);
 }
 
 IApplication app = Application.Create();
@@ -88,16 +97,30 @@ string? Start(string path)
             .LastOrDefault() ?? "could not start it";
 }
 
-string? appHostPath = choice switch
+// Forgetting edits the remembered list only. A running or just-scanned AppHost is on offer for its own
+// reason and stays on it, so saying so beats silently doing nothing.
+(IReadOnlyList<AppHostOption>? Options, string? Error) Forget(AppHostOption option)
 {
-    UseAppHost use => use.Path,
-    ChooseAppHost pick => Modal.PickAppHost(
-        app,
-        AppHostOptions.Build(pick.Candidates, [], [], DateTimeOffset.Now),
-        Start),
-    NoAppHost => Modal.PickAppHost(app, offer, Start),
-    _ => null,
-};
+    if (option.Running)
+    {
+        return (null, $"{option.Name} is running — only history can be forgotten");
+    }
+
+    IReadOnlyList<RecentAppHost> pruned = Recents.Forget(remembered, option.Path);
+
+    if (pruned.Count == remembered.Count)
+    {
+        return (null, $"{option.Name} is not in the history");
+    }
+
+    remembered = pruned;
+    Recents.Save(ConfigFile.RecentsPath, remembered);
+    return (AppHostOptions.Build(offered, remembered, found, DateTimeOffset.Now), null);
+}
+
+string? appHostPath = choice is UseAppHost use
+    ? use.Path
+    : Modal.PickAppHost(app, offer, Start, Forget);
 
 if (appHostPath is null)
 {

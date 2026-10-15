@@ -509,15 +509,24 @@ internal sealed class ManagerWindow : Window
         }
     }
 
-    /// <summary>Tears the old attachment down before starting the new one, so two sets of follow streams
-    /// never run at once and the panes never mix two AppHosts' resources.</summary>
+    /// <summary>
+    /// Picking the AppHost already attached to is a no-op — unless we stopped it ourselves, when the
+    /// panes are showing a process that is gone and the same path has to be attached to again.
+    /// </summary>
     private void SwitchTo(string path)
     {
-        if (AppHostSelection.SamePath(path, _session.Path))
+        if (_connection != ConnectionState.Stopped && AppHostSelection.SamePath(path, _session.Path))
         {
             return;
         }
 
+        Attach(path);
+    }
+
+    /// <summary>Tears the old attachment down before starting the new one, so two sets of follow streams
+    /// never run at once and the panes never mix two AppHosts' resources.</summary>
+    private void Attach(string path)
+    {
         // ponytail: blocks the loop while the streams stop (bounded at 3s). Worth async only if it drags.
         _session.StopAsync().GetAwaiter().GetResult();
 
@@ -677,14 +686,20 @@ internal sealed class ManagerWindow : Window
     private int OverlayWidth => Math.Max(38, Viewport.Width - 2);
 
     /// <summary>Shows the one list dialog; the accept callback runs after it has closed.</summary>
-    private void ShowList(string title, IReadOnlyList<string> rows, string help, int selected, Action<int> accept)
+    private void ShowList(
+        string title,
+        IReadOnlyList<string> rows,
+        string help,
+        int selected,
+        Action<int> accept,
+        Action<int>? remove = null)
     {
 
         _list = ListOverlay.Build(title, rows, help, selected, index =>
         {
             CloseOverlay();
             accept(index);
-        }, CloseOverlay, Math.Max(8, Viewport.Height - 2), OverlayWidth);
+        }, CloseOverlay, Math.Max(8, Viewport.Height - 2), OverlayWidth, remove);
 
         _overlayFrame = _list.Frame;
         Add(_overlayFrame);
@@ -739,6 +754,8 @@ internal sealed class ManagerWindow : Window
     private IReadOnlyList<Binding> BuildBindings() =>
     [
         new("o", "open the Aspire dashboard", Panes.AppHost, Binding.Char('o'), OpenDashboard),
+        new("c", "stop, restart or rebuild the AppHost", Panes.AppHost, Binding.Char('c'),
+            OpenAppHostCommands),
 
         new("j / k", "move up and down", Panes.Resources | Panes.Logs, Binding.AnyChar('j', 'k'), MoveInPane),
         new("^d / ^u", "page down and up", Panes.Resources | Panes.Logs, PageKey, PageInPane),
@@ -963,11 +980,8 @@ internal sealed class ManagerWindow : Window
 
         // The workspace scan is a second in a monorepo and this dialog opens on a keypress, so the list is
         // what is running plus what we have attached to before — no scan here.
-        IReadOnlyList<AppHostOption> options = AppHostOptions.Build(
-            hosts,
-            Recents.Load(ConfigFile.RecentsPath),
-            [],
-            DateTimeOffset.Now);
+        IReadOnlyList<RecentAppHost> recents = Recents.Load(ConfigFile.RecentsPath);
+        IReadOnlyList<AppHostOption> options = AppHostOptions.Build(hosts, recents, [], DateTimeOffset.Now);
 
         if (options.Count == 0)
         {
@@ -978,11 +992,150 @@ internal sealed class ManagerWindow : Window
         // Open on the host we are attached to, so Enter is a no-op rather than a surprise switch.
         int current = options.ToList().FindIndex(o => AppHostSelection.SamePath(o.Path, _session.Path));
 
-        ShowList("Switch AppHost",
-            AppHostOptions.Rows(options, _session.Path, _home, ListOverlay.RowWidth(OverlayWidth)),
-            " j/k move   enter attach or start   esc/^g cancel", Math.Max(current, 0),
-            index => AttachTo(options[index]));
+        ShowList("Switch AppHost", Rows(),
+            " j/k move   enter attach or start   d forget   esc/^g cancel", Math.Max(current, 0),
+            index => AttachTo(options[index]),
+            Forget);
+        return;
+
+        IReadOnlyList<string> Rows() =>
+            AppHostOptions.Rows(options, _session.Path, _home, ListOverlay.RowWidth(OverlayWidth));
+
+        // `d` edits the remembered list and nothing else: a running AppHost is on offer because it is
+        // running, so forgetting it would leave the row exactly where it is and look like a broken key.
+        void Forget(int index)
+        {
+            AppHostOption option = options[index];
+
+            if (option.Running)
+            {
+                _list?.ShowMessage($" {option.Name} is running — only history can be forgotten");
+                return;
+            }
+
+            IReadOnlyList<RecentAppHost> pruned = Recents.Forget(recents, option.Path);
+
+            if (pruned.Count == recents.Count)
+            {
+                _list?.ShowMessage($" {option.Name} is not in the history");
+                return;
+            }
+
+            recents = pruned;
+            Recents.Save(ConfigFile.RecentsPath, recents);
+            options = AppHostOptions.Build(hosts, recents, [], DateTimeOffset.Now);
+            _list?.SetRows(Rows());
+        }
     }
+
+    /// <summary>
+    /// The AppHost's own commands. The CLI has no restart or rebuild verb for an AppHost — only `stop`
+    /// and `start` — so both are composed here, differing in whether `start` builds first.
+    /// </summary>
+    private void OpenAppHostCommands()
+    {
+        string name = AppHostSelection.Name(_session.Path);
+
+        IReadOnlyList<string> rows = HelpText.Align(
+        [
+            ("stop", "stop it and choose another AppHost"),
+            ("restart", "stop and start again, reusing the build"),
+            ("rebuild", "stop and start again, building first"),
+        ]);
+
+        ShowList($"Commands: {name}", rows, " j/k move   enter run   esc/^g cancel", 0, index =>
+        {
+            switch (index)
+            {
+                case 0:
+                    StopAndChoose();
+                    break;
+
+                case 1:
+                    RestartAppHost(build: false);
+                    break;
+
+                default:
+                    RestartAppHost(build: true);
+                    break;
+            }
+        });
+    }
+
+    /// <summary>Stops it, then offers the same list `^r` does — there is nothing to look at once it is gone.</summary>
+    private void StopAndChoose()
+    {
+        if (StopAppHost() is { } error)
+        {
+            SetStatus(error);
+            return;
+        }
+
+        OpenHosts();
+    }
+
+    private void RestartAppHost(bool build)
+    {
+        string path = _session.Path;
+        string name = AppHostSelection.Name(path);
+
+        if (StopAppHost() is { } error)
+        {
+            SetStatus(error);
+            return;
+        }
+
+        SetStatus(build ? $"rebuilding {name} …" : $"restarting {name} …");
+        _app.LayoutAndDraw(true);
+
+        CommandResult result = _session.Cli.StartAppHostAsync(path, CancellationToken.None, build)
+            .GetAwaiter()
+            .GetResult();
+
+        if (!result.Success)
+        {
+            // Stopped and not started again: `^r` is the way back, and the Stopped state lets it reattach.
+            SetStatus(LastLine(result.Output) ?? $"could not start {name}");
+            return;
+        }
+
+        // The restarted AppHost is a new process whose resources carry new names, so this is a fresh
+        // attachment to the same path rather than a reconnect of the old one.
+        Attach(path);
+    }
+
+    /// <summary>Stops the AppHost and the streams following it, returning the reason if it would not stop.</summary>
+    private string? StopAppHost()
+    {
+        string name = AppHostSelection.Name(_session.Path);
+
+        SetStatus($"stopping {name} …");
+
+        // Drawn by hand: `aspire stop` blocks, and the run loop cannot repaint while it does.
+        _app.LayoutAndDraw(true);
+
+        CommandResult result = _session.Cli.StopAppHostAsync(CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+
+        if (!result.Success)
+        {
+            return LastLine(result.Output) ?? $"could not stop {name}";
+        }
+
+        // Before the streams notice, so they do not spend the reconnect backoff on an AppHost we stopped.
+        _session.StopAsync().GetAwaiter().GetResult();
+
+        // Also what tells SwitchTo that reattaching to this very path is now a real switch, not a no-op.
+        SetConnection(ConnectionState.Stopped, TimeSpan.Zero);
+        return null;
+    }
+
+    /// <summary>The CLI's own failure, as one line: it is going into the status bar.</summary>
+    private static string? LastLine(string output) =>
+        AnsiText.Strip(output)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault();
 
     /// <summary>Attaches, starting the AppHost first when it is not running.</summary>
     private void AttachTo(AppHostOption option)
@@ -1000,9 +1153,7 @@ internal sealed class ManagerWindow : Window
 
             if (!result.Success)
             {
-                SetStatus(AnsiText.Strip(result.Output)
-                    .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .LastOrDefault() ?? $"could not start {option.Name}");
+                SetStatus(LastLine(result.Output) ?? $"could not start {option.Name}");
                 return;
             }
         }

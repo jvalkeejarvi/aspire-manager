@@ -47,11 +47,28 @@ public sealed class AspireCli(string appHostPath, string executable = "aspire")
     /// <summary>
     /// Starts an AppHost in the background and returns once the CLI reports it up — about five seconds
     /// when nothing needs building, minutes when it does. Its resources come up afterwards, which the
-    /// follow streams already wait out.
+    /// follow streams already wait out. <paramref name="build"/> is what separates a restart from a
+    /// rebuild: the CLI has no verb for either, so both are this and <see cref="StopAppHostAsync"/>.
     /// </summary>
-    public Task<CommandResult> StartAppHostAsync(string path, CancellationToken ct) =>
+    public Task<CommandResult> StartAppHostAsync(string path, CancellationToken ct, bool build = true)
+    {
+        List<string> args = ["start", "--apphost", path, "--format", "Json", "--nologo", "--non-interactive"];
+
+        if (!build)
+        {
+            args.Add("--no-build");
+        }
+
+        return RunToCompletionAsync([.. args], ct);
+    }
+
+    /// <summary>
+    /// Stops the AppHost this instance is bound to, and every resource with it. Not `--force`, which also
+    /// deletes the persistent volumes behind the resources — a different and unrecoverable thing to ask.
+    /// </summary>
+    public Task<CommandResult> StopAppHostAsync(CancellationToken ct) =>
         RunToCompletionAsync(
-            ["start", "--apphost", path, "--format", "Json", "--nologo", "--non-interactive"],
+            ["stop", "--apphost", appHostPath, "--nologo", "--non-interactive"],
             ct);
 
     /// <summary>

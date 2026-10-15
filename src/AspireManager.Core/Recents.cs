@@ -25,6 +25,13 @@ public static class Recents
     ];
 
     /// <summary>
+    /// The list without <paramref name="path"/>. Removing one that is not there is not an error: the
+    /// picker also offers running and workspace AppHosts, which were never remembered to begin with.
+    /// </summary>
+    public static IReadOnlyList<RecentAppHost> Forget(IReadOnlyList<RecentAppHost> existing, string path) =>
+        [.. existing.Where(e => !AppHostSelection.SamePath(e.Path, path))];
+
+    /// <summary>
     /// Newest first, dropping any project file that has since been deleted or renamed. The pruning is not
     /// written back — the next attach rewrites the file anyway, and a path on an unmounted volume should
     /// not be forgotten just for being unreachable once.

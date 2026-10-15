@@ -55,6 +55,9 @@ With no argument it attaches to the only running AppHost, and asks which one if 
 running, it offers the AppHosts you have attached to before and any it finds in the current directory, and
 starts the one you pick — the workspace scan costs about a second in a monorepo, so it only ever runs on
 that path. `^r` offers the same list while the tool is open, starting the AppHost first when it is not up.
+Each row carries the directory the project sits in, since one repository checked out in several worktrees
+gives every row the same name. `d` forgets the row under the cursor; a running AppHost is on the list
+because it is running, so `d` says so and leaves it there.
 
 A native binary, if you would rather have one on your `PATH`:
 
@@ -98,6 +101,17 @@ dotnet nuget push ./nupkg/aspire-manager.<version>.nupkg -s <feed> -k <key>
 
 Press `?` for the keys that apply where you are; the list is generated from the bindings themselves, so it
 cannot fall out of date. `/` narrows it, as it does in every list here.
+
+### AppHost
+
+| Key | |
+|---|---|
+| `o` | open the Aspire dashboard |
+| `c` | stop, restart or rebuild the AppHost itself |
+
+The CLI has no restart or rebuild verb for an AppHost, only `start` and `stop`, so both are composed from
+the two: restart reuses the build, rebuild compiles first. Stopping leaves nothing to look at, so the
+AppHost list opens straight after — the same one `^r` shows.
 
 ### Resources
 
@@ -144,8 +158,8 @@ macOS, `~/.config/aspire-manager` on Linux, `%APPDATA%\aspire-manager` on Window
 commas are allowed.
 
 Beside it, `recents.json` records the AppHosts you have attached to, ten at most, so they can be offered
-when none is running. It is written by the tool, which is why it is not part of the config: rewriting a
-hand-edited file would drop your comments.
+when none is running; `d` in the picker drops one from it. It is written by the tool, which is why it is
+not part of the config: rewriting a hand-edited file would drop your comments.
 
 ```json
 {

@@ -18,13 +18,19 @@ internal static class Modal
     /// Returns the AppHost to attach to, or null if the user backed out. An option that is not running is
     /// started first, by <paramref name="start"/>, which returns a message if it could not be: the dialog
     /// then stays open with that message rather than dropping the user back at a bare shell.
+    /// <paramref name="forget"/> drops one from the remembered list, returning either the list as it now
+    /// stands or the reason it could not — the caller owns that state, since it outlives this dialog.
     /// </summary>
     public static string? PickAppHost(
         IApplication app,
         IReadOnlyList<AppHostOption> options,
-        Func<string, string?> start)
+        Func<string, string?> start,
+        Func<AppHostOption, (IReadOnlyList<AppHostOption>? Options, string? Error)>? forget = null)
     {
         string? chosen = null;
+
+        // Reassigned by `d`, which rebuilds the list: the accept callback must index the list as it is.
+        IReadOnlyList<AppHostOption> current = options;
 
         // No window is laid out yet, and Terminal.Gui has no size of its own until its run loop starts:
         // both `app.Screen` and `Driver.Cols` read zero here, which sizes the dialog to its 38-column
@@ -46,12 +52,12 @@ internal static class Modal
         ListOverlay? overlay = null;
         overlay = ListOverlay.Build(
             "Select AppHost",
-            AppHostOptions.Rows(options, null, home, ListOverlay.RowWidth(overlayWidth)),
-            " j/k move   enter attach or start   esc/^g quit",
+            Rows(),
+            " j/k move   enter attach or start   d forget   esc/^g quit",
             0,
             index =>
             {
-                AppHostOption option = options[index];
+                AppHostOption option = current[index];
 
                 if (!option.Running)
                 {
@@ -72,7 +78,25 @@ internal static class Modal
                 app.RequestStop(window);
             },
             () => app.RequestStop(window),
-            maxWidth: overlayWidth);
+            maxWidth: overlayWidth,
+            remove: forget is null ? null : Forget);
+
+        IReadOnlyList<string> Rows() =>
+            AppHostOptions.Rows(current, null, home, ListOverlay.RowWidth(overlayWidth));
+
+        void Forget(int index)
+        {
+            (IReadOnlyList<AppHostOption>? remaining, string? error) = forget!(current[index]);
+
+            if (remaining is null)
+            {
+                overlay!.ShowMessage($" {error}");
+                return;
+            }
+
+            current = remaining;
+            overlay!.SetRows(Rows());
+        }
 
         window.Add(overlay.Frame);
 

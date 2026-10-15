@@ -40,6 +40,9 @@ public enum ConnectionState
     Connecting,
     Connected,
     Reconnecting,
+
+    /// <summary>Stopped from inside the tool, so nothing is retrying and nothing is coming back.</summary>
+    Stopped,
 }
 
 /// <summary>One line of the resource pane: either a type heading or a resource under it.</summary>
@@ -258,6 +261,7 @@ public static class ShellModel
     {
         ConnectionState.Connected => "connected",
         ConnectionState.Reconnecting => $"reconnecting in {retryIn.TotalSeconds:0}s",
+        ConnectionState.Stopped => "stopped",
         _ => "connecting",
     };
 
@@ -266,6 +270,7 @@ public static class ShellModel
     {
         ConnectionState.Connected => RowTone.Healthy,
         ConnectionState.Reconnecting => RowTone.Failed,
+        ConnectionState.Stopped => RowTone.Inactive,
         _ => RowTone.Warning,
     };
 
