@@ -8,5 +8,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AspireManager.Core.Tests/AspireManager.Core.Tests.csproj" />
+    <Project Path="tests/AspireManager.EndToEnd.Tests/AspireManager.EndToEnd.Tests.csproj" />
   </Folder>
 </Solution>

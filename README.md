@@ -33,7 +33,7 @@ separately, because a running resource can still be unhealthy.
 ## Requirements
 
 - **.NET 10 SDK**
-- **Aspire CLI** on your `PATH` (`aspire --version`) — built against 13.5.3
+- **Aspire CLI** on your `PATH` (`aspire --version`) — built against 13.6.1
 - macOS or Linux (developed on macOS; suspend and terminal handling are Unix-only)
 
 There is nothing to configure to get started, and nothing is installed into your AppHost: the tool drives
@@ -214,13 +214,21 @@ AppHost fills quickly — reattaching to a large one replayed close to 8000 line
 
 ```bash
 dotnet build
-dotnet test                                        # no AppHost required
+dotnet test tests/AspireManager.Core.Tests         # no AppHost required
+dotnet test tests/AspireManager.EndToEnd.Tests     # starts testapphost, drives the real TUI
 cd testapphost/AspireManager.TestAppHost && aspire run
 ```
 
 `testapphost/` is a throwaway AppHost of two sleeping executables — no Docker, up in about 20 seconds — so
 the UI can be driven without a real application. One of its resources carries a custom no-op command, to
-exercise the confirmation path without pointing anything destructive at a real environment.
+exercise the confirmation path without pointing anything destructive at a real environment. Started with
+`ASPIRE_MANAGER_END_TO_END=1`, it adds a third resource, `manager`: this TUI running in an Aspire-hosted
+terminal attached to that same AppHost.
+
+The end-to-end tests drive `manager` with VHS tapes through `aspire terminal tape play`, restarting it
+before each tape. A tape's `Wait+Screen /regex/` lines are its assertions; a failing one prints the screen
+it gave up on. They need an Aspire CLI of the same version as the AppHost — 13.5 and 13.6 cannot talk to
+each other's terminal backchannel.
 
 `src/AspireManager.Core` holds everything testable without a terminal: CLI output parsing, the resource and
 log stores, search, and the command policy. `src/AspireManager.Tui` is the Terminal.Gui layer on top.

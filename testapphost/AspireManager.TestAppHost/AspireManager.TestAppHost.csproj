@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.5.3">
+<Project Sdk="Aspire.AppHost.Sdk/13.6.1">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -8,6 +8,10 @@
 
     <ItemGroup>
         <PackageReference Include="Aspire.Hosting.AppHost"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\AspireManager.Tui\AspireManager.Tui.csproj"/>
     </ItemGroup>
 
 </Project>

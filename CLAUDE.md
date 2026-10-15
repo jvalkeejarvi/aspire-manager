@@ -9,8 +9,9 @@ is only what you need to know before changing it.
 src/AspireManager.Core   CLI output parsing, resource/log stores, search, policy — no terminal types
 src/AspireManager.Tui    Terminal.Gui layer
 tests/                   xunit.v3 on Microsoft.Testing.Platform; run args go after `--`
-testapphost/             two sleep executables, no Docker, ~20s to start — outside tests/ on purpose,
-                         since tests/Directory.Build.props enables the MTP runner an AppHost must not inherit
+testapphost/             two sleep executables, plus the TUI itself (`manager`, in a WithTerminal PTY) when
+                         ASPIRE_MANAGER_END_TO_END=1; no Docker, ~20s to start — outside tests/ on purpose, since tests/Directory.Build.props
+                         enables the MTP runner an AppHost must not inherit
 ```
 
 Anything decidable without a terminal belongs in Core, where it can be tested. NuGet versions live in
@@ -83,4 +84,6 @@ repeating a signature, section banners, commented-out code, defending the design
 nobody raised. One line by default, two or three when a constraint needs them; prefer fixing the code over
 explaining it.
 
-Tests build their payloads in code — no JSON fixture files. Captured CLI output goes inline as a literal.
+Tests build their payloads in code — no JSON fixture files, and no `.tape` files either: end-to-end tapes
+are raw string literals, and every one starts against a freshly restarted `manager`. Captured CLI output
+goes inline as a literal.
