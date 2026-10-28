@@ -93,8 +93,6 @@ internal sealed class ManagerWindow : Window
     private int _logMatchPos;
     private List<string> _logLines = [];
     private List<bool> _logErrors = [];
-    private TextField? _confirmInput;
-    private Label? _confirmHelp;
     private ConfirmCommand? _pendingConfirm;
 
     public ManagerWindow(
@@ -1299,17 +1297,16 @@ internal sealed class ManagerWindow : Window
             X = 1,
             Y = 0,
             Width = Dim.Fill(1),
-            Height = 3,
-            Text = $"{confirm.Command} on {confirm.DisplayName}.\nThis is not a routine command.\nType the resource name to continue:",
+            Height = 2,
+            Text = $"Run {confirm.Command} on {confirm.DisplayName}?\nThis is not a routine command.",
         };
 
-        _confirmInput = new TextField { X = 1, Y = 3, Width = Dim.Fill(2) };
-        _confirmHelp = new Label
+        Label help = new()
         {
             X = 1,
-            Y = 5,
+            Y = 3,
             Width = Dim.Fill(1),
-            Text = " enter confirm   esc cancel",
+            Text = " y/enter run   n/esc cancel",
         };
 
         _overlayFrame = new FrameView
@@ -1317,33 +1314,18 @@ internal sealed class ManagerWindow : Window
             Title = $"Confirm {confirm.Command}",
             X = Pos.Center(),
             Y = Pos.Center(),
-            Width = Math.Max(52, confirm.Expected.Length + 26),
-            Height = 8,
+            Width = Math.Max(52, confirm.Command.Length + confirm.DisplayName.Length + 16),
+            Height = 6,
         };
-        _overlayFrame.Add(prompt, _confirmInput, _confirmHelp);
+        _overlayFrame.Add(prompt, help);
 
         Add(_overlayFrame);
         _overlay = Overlay.Confirm;
-        _confirmInput.SetFocus();
     }
 
     private void OnConfirmKey(Key key)
     {
-        if (ListKeys.IsCancel(key))
-        {
-            key.Handled = true;
-            string command = _pendingConfirm?.Command ?? "command";
-            CloseOverlay();
-            SetStatus($"{command} cancelled");
-            return;
-        }
-
-        if (key != Key.Enter)
-        {
-            // Everything else has to reach the text field, including the r, s and b in resource names.
-            return;
-        }
-
+        // Swallowed whatever it is, so a stray key neither reaches the pane underneath nor counts as yes.
         key.Handled = true;
         if (_pendingConfirm is not { } confirm)
         {
@@ -1351,18 +1333,16 @@ internal sealed class ManagerWindow : Window
             return;
         }
 
-        if (!ShellModel.ConfirmationMatches(confirm.Expected, _confirmInput?.Text ?? ""))
+        if (key == Key.Enter || Binding.AnyChar('y', 'Y')(key))
         {
-            if (_confirmHelp is not null)
-            {
-                _confirmHelp.Text = " name does not match   esc cancel";
-            }
-
-            return;
+            CloseOverlay();
+            Start(confirm.DisplayName, confirm.Command);
         }
-
-        CloseOverlay();
-        Start(confirm.DisplayName, confirm.Command);
+        else if (ListKeys.IsCancel(key) || Binding.AnyChar('n', 'N')(key))
+        {
+            CloseOverlay();
+            SetStatus($"{confirm.Command} cancelled");
+        }
     }
 
     private void CloseOverlay()
@@ -1374,8 +1354,6 @@ internal sealed class ManagerWindow : Window
         }
 
         _overlayFrame = null;
-        _confirmInput = null;
-        _confirmHelp = null;
         _pendingConfirm = null;
         _list = null;
         _searchInput = null;

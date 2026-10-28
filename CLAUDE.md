@@ -28,7 +28,7 @@ pretty-printed document** (`{"resources":[…]}`, `{"logs":[…]}`). Parse the r
   nothing finer, so `ResourceStore` reports the ambiguity rather than pretending to resolve it.
 - Every reconnect replays the whole log history, so `LogStore` drops exact repeats.
 - Commands come from the AppHost; nothing is hardcoded. `CommandPolicy` is an **allowlist** —
-  `start/stop/restart/rebuild` fire on one keypress, everything else needs typed confirmation, because
+  `start/stop/restart/rebuild` fire on one keypress, everything else asks y/n first, because
   nothing in the metadata marks a command destructive and a denylist would miss whatever an integration adds.
 
 ## Values from Aspire

@@ -5,7 +5,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 builder.AddExecutable("ticker", "bash", ".", "-c", "while true; do date; sleep 2; done");
 
 // A custom command stands in for the destructive ones integrations inject (delete-azure-resources and
-// friends): not in the TUI's allowlist, so it must demand typed confirmation. Does nothing on purpose.
+// friends): not in the TUI's allowlist, so it must ask y/n first. Does nothing on purpose.
 builder.AddExecutable("noisy", "bash", ".", "-c", "while true; do echo working; sleep 1; done")
     .WithCommand(
         "wipe-everything",

@@ -9,7 +9,7 @@ public enum CommandAvailability
     /// <summary>Runs on a single keypress.</summary>
     Instant,
 
-    /// <summary>Runs only after the user types the resource name back.</summary>
+    /// <summary>Runs only after the user answers yes.</summary>
     NeedsConfirmation,
 }
 

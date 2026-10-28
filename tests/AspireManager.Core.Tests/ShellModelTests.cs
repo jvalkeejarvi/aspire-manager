@@ -64,18 +64,13 @@ public class ShellModelTests
             .Which.Should().BeEquivalentTo(new RunCommand("recipes-api", "restart"));
     }
 
-    /// <summary>The guard is typing the resource name back, so that name is what must be echoed.</summary>
     [Fact]
-    public void DestructiveCommandDemandsTypedConfirmation()
-    {
-        CommandDecision decision = ShellModel.Decide(
+    public void DestructiveCommandDemandsConfirmation() =>
+        ShellModel.Decide(
             Resource("azure-environment", commands: new() { ["delete-azure-resources"] = Command() }),
-            "delete-azure-resources");
-
-        ConfirmCommand confirm = decision.Should().BeOfType<ConfirmCommand>().Subject;
-        confirm.Command.Should().Be("delete-azure-resources");
-        confirm.Expected.Should().Be("azure-environment");
-    }
+            "delete-azure-resources")
+            .Should().BeOfType<ConfirmCommand>()
+            .Which.Should().BeEquivalentTo(new ConfirmCommand("azure-environment", "delete-azure-resources"));
 
     [Fact]
     public void MissingCommandIsRefused() =>
@@ -127,23 +122,6 @@ public class ShellModelTests
     [Fact]
     public void ResourceWithNoCommandsHasNone() =>
         ShellModel.AvailableCommands(Resource(commands: null)).Should().BeEmpty();
-
-    [Fact]
-    public void ConfirmationAcceptsTheExactNameIgnoringSurroundingSpace()
-    {
-        ShellModel.ConfirmationMatches("azure-environment", "azure-environment").Should().BeTrue();
-        ShellModel.ConfirmationMatches("azure-environment", "  azure-environment  ").Should().BeTrue();
-    }
-
-    /// <summary>A guard that can be satisfied by accident is not a guard.</summary>
-    [Theory]
-    [InlineData("Azure-Environment")]
-    [InlineData("azure")]
-    [InlineData("azure-environment-x")]
-    [InlineData("")]
-    [InlineData("y")]
-    public void ConfirmationRejectsAnythingElse(string typed) =>
-        ShellModel.ConfirmationMatches("azure-environment", typed).Should().BeFalse();
 }
 
 public class AppHostSelectionTests

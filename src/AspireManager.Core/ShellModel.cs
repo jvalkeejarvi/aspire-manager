@@ -5,8 +5,8 @@ public abstract record CommandDecision;
 
 public sealed record RunCommand(string DisplayName, string Command) : CommandDecision;
 
-/// <summary>The user must type <paramref name="Expected"/> back before this runs.</summary>
-public sealed record ConfirmCommand(string DisplayName, string Command, string Expected) : CommandDecision;
+/// <summary>The user must answer yes before this runs.</summary>
+public sealed record ConfirmCommand(string DisplayName, string Command) : CommandDecision;
 
 public sealed record RefuseCommand(string Reason) : CommandDecision;
 
@@ -342,15 +342,8 @@ public static class ShellModel
         {
             CommandAvailability.Instant => new RunCommand(resource.DisplayName, command),
             CommandAvailability.NeedsConfirmation =>
-                new ConfirmCommand(resource.DisplayName, command, resource.DisplayName),
+                new ConfirmCommand(resource.DisplayName, command),
             _ => new RefuseCommand($"{command} is not available on {resource.DisplayName}"),
         };
     }
-
-    /// <summary>
-    /// Exact match after trimming. Deliberately not case-insensitive or fuzzy: the typing is the guard,
-    /// and a guard you can satisfy by accident is not one.
-    /// </summary>
-    public static bool ConfirmationMatches(string expected, string typed) =>
-        string.Equals(expected, typed.Trim(), StringComparison.Ordinal);
 }

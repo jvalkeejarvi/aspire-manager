@@ -10,19 +10,22 @@ namespace AspireManager.EndToEnd.Tests;
 public class ConfirmationTests(TestAppHost host)
 {
     [Fact]
-    public async Task CommandOutsideAllowlistRunsOnlyAfterTypingResourceName()
+    public async Task CommandOutsideAllowlistRunsOnlyAfterAnsweringYes()
     {
         CliResult result = await host.PlayAsync("""
             Wait+Screen@30s /R H manager/
             Type "c"
             Wait+Screen@5s /Commands: noisy/
             Enter
-            Wait+Screen@5s /Type the resource name/
-            Type "nois"
+            Wait+Screen@5s /Run wipe-everything on noisy\?/
+            Type "n"
+            Wait+Screen@5s /wipe-everything cancelled/
+            Type "c"
+            Wait+Screen@5s /Commands: noisy/
             Enter
-            Wait+Screen@5s /name does not match/
+            Wait+Screen@5s /Run wipe-everything on noisy\?/
+            Enter
             Type "y"
-            Enter
             Wait+Screen@10s /Successfully executed command 'wipe-everything'/
             """);
 

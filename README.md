@@ -148,8 +148,8 @@ AppHost list opens straight after — the same one `^r` shows.
 
 Commands are read from the AppHost, never hardcoded, so a resource offers exactly what the dashboard
 offers it. `start`, `stop`, `restart` and `rebuild` run on a single keypress; anything else — including
-commands an integration added, such as `delete-azure-resources` — asks you to type the resource name
-first. Commands needing arguments are listed but not offered, since this does not build forms.
+commands an integration added, such as `delete-azure-resources` — asks first (`y` or Enter to run, `n` or Esc to cancel).
+Commands needing arguments are listed but not offered, since this does not build forms.
 
 ## Configuration
 
