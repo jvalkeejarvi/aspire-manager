@@ -69,6 +69,9 @@ else if (choice is ChooseAppHost pick)
     offer = AppHostOptions.Build(offered, remembered, found, DateTimeOffset.Now);
 }
 
+// The default of 25 holds every keypress for up to 40ms before it draws, which makes j/k feel sluggish.
+Application.MaximumIterationsPerSecond = 120;
+
 IApplication app = Application.Create();
 app.Init();
 
