@@ -33,7 +33,7 @@ separately, because a running resource can still be unhealthy.
 ## Requirements
 
 - **.NET 10 SDK**
-- **Aspire CLI** on your `PATH` (`aspire --version`) — built against 13.6.1
+- **Aspire CLI** on your `PATH` (`aspire --version`) — built against 13.6.4
 - macOS or Linux (developed on macOS; suspend and terminal handling are Unix-only)
 
 There is nothing to configure to get started, and nothing is installed into your AppHost: the tool drives
